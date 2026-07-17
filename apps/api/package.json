@@ -8,7 +8,7 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "lint": "tsc --noEmit",
-    "test": "node --import tsx --test src/forge/domain/**/*.test.ts src/lib/listQuery.test.ts src/catalog/domain/**/*.test.ts src/catalog/providers/**/*.test.ts src/clickup/**/*.test.ts",
+    "test": "node scripts/run-unit-tests.mjs",
     "catalog:assess": "tsx scripts/catalog-assess-inventory.ts",
     "prisma:migrate": "prisma migrate deploy",
     "prisma:generate": "prisma generate",
