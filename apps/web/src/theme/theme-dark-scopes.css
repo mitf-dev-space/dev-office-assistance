@@ -1,0 +1,102 @@
+/* Dark mode scopes — paired with each accent preset in theme-color-scopes.css */
+
+[data-color-scheme="dark"][data-app-theme="ember"] {
+  --color-canvas: #0a0909;
+  --color-surface: #141111;
+  --color-ink: #f5f4f2;
+  --color-ink-secondary: #d4d4d8;
+  --color-muted: #a1a1aa;
+  --color-border: rgba(245, 244, 242, 0.1);
+  --color-border-strong: rgba(245, 244, 242, 0.18);
+
+  --accent: #f87171;
+  --accent-hover: #fca5a5;
+  --accent-faint: rgba(248, 113, 113, 0.18);
+  --accent-dark: #fecaca;
+
+  --theme-mesh-1: rgba(220, 38, 38, 0.14);
+  --theme-mesh-2: rgba(0, 0, 0, 0.35);
+  --theme-swatch-pulse: rgba(248, 113, 113, 0.35);
+  --theme-swatch-glow: rgba(248, 113, 113, 0.45);
+  --page-enter-glow: rgba(220, 38, 38, 0.12);
+}
+
+[data-color-scheme="dark"][data-app-theme="teal"] {
+  --color-canvas: #0c1012;
+  --color-surface: #12181c;
+  --color-ink: #eef2f4;
+  --color-ink-secondary: #cbd5e1;
+  --color-muted: #94a3b8;
+  --color-border: rgba(238, 242, 244, 0.1);
+  --color-border-strong: rgba(238, 242, 244, 0.16);
+
+  --accent: #2dd4bf;
+  --accent-hover: #5eead4;
+  --accent-faint: rgba(45, 212, 191, 0.16);
+  --accent-dark: #99f6e4;
+
+  --theme-mesh-1: rgba(13, 148, 136, 0.16);
+  --theme-mesh-2: rgba(0, 0, 0, 0.32);
+  --theme-swatch-pulse: rgba(45, 212, 191, 0.35);
+  --theme-swatch-glow: rgba(45, 212, 191, 0.42);
+  --page-enter-glow: rgba(15, 118, 110, 0.14);
+}
+
+[data-color-scheme="dark"][data-app-theme="violet"] {
+  --color-canvas: #0e0b18;
+  --color-surface: #16122a;
+  --color-ink: #ede9fe;
+  --color-ink-secondary: #c4b5fd;
+  --color-muted: #a78bfa;
+  --color-border: rgba(237, 233, 254, 0.1);
+  --color-border-strong: rgba(237, 233, 254, 0.18);
+
+  --accent: #a78bfa;
+  --accent-hover: #c4b5fd;
+  --accent-faint: rgba(167, 139, 250, 0.18);
+  --accent-dark: #ddd6fe;
+
+  --theme-mesh-1: rgba(124, 58, 237, 0.18);
+  --theme-mesh-2: rgba(0, 0, 0, 0.35);
+  --theme-swatch-pulse: rgba(167, 139, 250, 0.38);
+  --theme-swatch-glow: rgba(167, 139, 250, 0.48);
+  --page-enter-glow: rgba(109, 40, 217, 0.14);
+}
+
+[data-color-scheme="dark"] body::after {
+  opacity: 0.14;
+  mix-blend-mode: screen;
+}
+
+[data-color-scheme="dark"] .card,
+[data-color-scheme="dark"] .panel {
+  box-shadow: var(--shadow-sm);
+}
+
+[data-color-scheme="dark"] code {
+  background: color-mix(in srgb, var(--color-surface) 70%, var(--color-ink) 8%);
+}
+
+[data-color-scheme="dark"] .login-card {
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.45);
+}
+
+[data-color-scheme="dark"] .status-badge--success {
+  background: rgba(34, 197, 94, 0.16);
+  color: #86efac;
+}
+
+[data-color-scheme="dark"] .status-badge--danger {
+  background: rgba(239, 68, 68, 0.16);
+  color: #fca5a5;
+}
+
+[data-color-scheme="dark"] .status-badge--progress {
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  color: var(--accent-hover);
+}
+
+[data-color-scheme="dark"] .status-badge--neutral {
+  background: rgba(148, 163, 184, 0.14);
+  color: #cbd5e1;
+}

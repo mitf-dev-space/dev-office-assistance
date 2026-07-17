@@ -4,11 +4,13 @@ import { useAuth } from "./auth/AuthContext";
 import { AppLayout } from "./components/AppLayout";
 import { LoginPage } from "./pages/LoginPage";
 import { DashboardPage } from "./pages/DashboardPage";
+import { TriagePage } from "./pages/TriagePage";
 import { TriageDetailPage } from "./pages/TriageDetailPage";
 import { TriageCreatePage } from "./pages/TriageCreatePage";
 import { AppsIndexPage } from "./pages/AppsIndexPage";
 import { OutlookPage } from "./pages/OutlookPage";
 import { TodoPage } from "./pages/TodoPage";
+import { ClickUpPage } from "./pages/ClickUpPage";
 import { AppRegistrationsPage } from "./pages/AppRegistrationsPage";
 import { ExpensesPage } from "./pages/ExpensesPage";
 import { ExpenseEditPage } from "./pages/ExpenseEditPage";
@@ -28,6 +30,17 @@ import { ForgeRequestBuildPage } from "./pages/forge/ForgeRequestBuildPage";
 import { ForgeBuildDetailPage } from "./pages/forge/ForgeBuildDetailPage";
 import { ForgeAdminPage } from "./pages/forge/ForgeAdminPage";
 import { isForgeOnlyUser } from "./lib/forge/roles";
+import { CatalogOverviewPage } from "./pages/catalog/CatalogOverviewPage";
+import { CatalogRepositoriesPage } from "./pages/catalog/CatalogRepositoriesPage";
+import { CatalogRepositoryDetailPage } from "./pages/catalog/CatalogRepositoryDetailPage";
+import { CatalogPoliciesPage } from "./pages/catalog/CatalogPoliciesPage";
+import {
+  CatalogImportsPage,
+  CatalogIntegrationsPage,
+  CatalogGapsPage,
+  CatalogSyncPage,
+  CatalogRegisterRepositoryPage,
+} from "./pages/catalog/CatalogImportsPage";
 
 function DashboardRoute() {
   const { user } = useAuth();
@@ -65,6 +78,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<DashboardRoute />} />
           <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/triage" element={<TriagePage />} />
           <Route path="/triage/new" element={<TriageCreatePage />} />
           <Route path="/triage/:id" element={<TriageDetailPage />} />
           <Route path="/expenses" element={<ExpensesPage />} />
@@ -82,6 +96,7 @@ export default function App() {
           <Route path="/apps/registration" element={<AppRegistrationsPage />} />
           <Route path="/apps/outlook" element={<OutlookPage />} />
           <Route path="/apps/todo" element={<TodoPage />} />
+          <Route path="/apps/clickup" element={<ClickUpPage />} />
           <Route path="/email" element={<Navigate to="/apps/outlook" replace />} />
           <Route element={<ForgeRouteGuard />}>
             <Route path="/forge" element={<ForgeDashboardPage />} />
@@ -92,6 +107,15 @@ export default function App() {
           <Route element={<ForgeRouteGuard requireAdmin />}>
             <Route path="/forge/admin" element={<ForgeAdminPage />} />
           </Route>
+          <Route path="/catalog" element={<CatalogOverviewPage />} />
+          <Route path="/catalog/repositories" element={<CatalogRepositoriesPage />} />
+          <Route path="/catalog/repositories/new" element={<CatalogRegisterRepositoryPage />} />
+          <Route path="/catalog/repositories/:id" element={<CatalogRepositoryDetailPage />} />
+          <Route path="/catalog/imports" element={<CatalogImportsPage />} />
+          <Route path="/catalog/integrations" element={<CatalogIntegrationsPage />} />
+          <Route path="/catalog/gaps" element={<CatalogGapsPage />} />
+          <Route path="/catalog/policies" element={<CatalogPoliciesPage />} />
+          <Route path="/catalog/sync" element={<CatalogSyncPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </AppLayout>

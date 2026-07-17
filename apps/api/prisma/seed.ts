@@ -3,6 +3,14 @@ import { PrismaClient, type DevTeam } from "@prisma/client";
 import bcrypt from "bcryptjs";
 
 import { MASARAT_ROSTER, parseHireDate } from "./roster-seed-data.js";
+import { seedCatalog } from "./catalog-seed.js";
+import { seedCatalogInventory } from "../src/catalog/seed/inventorySeed.js";
+import { seedConnectionTokensFromEnv } from "../src/catalog/seed/connectionTokens.js";
+import { seedHelmGithubRepository } from "../src/catalog/seed/helmGithubRepository.js";
+import { loadEnv, catalogEnvFrom } from "../src/env.js";
+import { seedConnectionTokensFromEnv } from "../src/catalog/seed/connectionTokens.js";
+import { seedHelmGithubRepository } from "../src/catalog/seed/helmGithubRepository.js";
+import { loadEnv, catalogEnvFrom } from "../src/env.js";
 
 const prisma = new PrismaClient();
 
@@ -71,19 +79,30 @@ async function main() {
     },
   });
 
-  await prisma.user.upsert({
-    where: { email: "pm@local.dev" },
-    create: {
-      email: "pm@local.dev",
-      passwordHash: hForgePm,
-      displayName: "Project Manager Demo",
-      role: "forge_pm",
-    },
-    update: {
-      passwordHash: hForgePm,
-      role: "forge_pm",
-    },
+  const forgePmEmail = process.env.SEED_FORGE_PM_EMAIL ?? "a.almesbahi@masarat.ly";
+  const existingPm = await prisma.user.findFirst({
+    where: { OR: [{ email: "pm@local.dev" }, { email: forgePmEmail }, { role: "forge_pm" }] },
   });
+  if (existingPm) {
+    await prisma.user.update({
+      where: { id: existingPm.id },
+      data: {
+        email: forgePmEmail,
+        passwordHash: hForgePm,
+        displayName: "Project Manager Demo",
+        role: "forge_pm",
+      },
+    });
+  } else {
+    await prisma.user.create({
+      data: {
+        email: forgePmEmail,
+        passwordHash: hForgePm,
+        displayName: "Project Manager Demo",
+        role: "forge_pm",
+      },
+    });
+  }
 
   const devCount = await prisma.developer.count();
   if (devCount > 0) {
@@ -125,8 +144,68 @@ async function main() {
   }
   console.log(`Seeded ${demoBanks.length} Forge demo banks (${demoBanks.map((b) => b.code).join(", ")}).`);
 
+  const jumBank = await prisma.forgeBank.findUnique({ where: { code: "JUM" } });
+  if (jumBank) {
+    let gatewayApp = await prisma.forgeApplication.findFirst({
+      where: { bankId: jumBank.id, name: "Masarat Gateway Tester" },
+    });
+    if (!gatewayApp) {
+      gatewayApp = await prisma.forgeApplication.create({
+        data: {
+          bankId: jumBank.id,
+          name: "Masarat Gateway Tester",
+          description: "Flutter gateway_tester harness for demo Android builds (wallet-services repo).",
+          repositoryProvider: "github",
+          repositoryUrl: "https://github.com/anstwechy/wallet-services.git",
+          projectSubpath: "mobile/gateway_tester",
+          defaultBranch: "dev",
+          androidEnabled: true,
+          iosEnabled: false,
+          isActive: true,
+        },
+      });
+    } else {
+      gatewayApp = await prisma.forgeApplication.update({
+        where: { id: gatewayApp.id },
+        data: {
+          repositoryUrl: "https://github.com/anstwechy/wallet-services.git",
+          projectSubpath: "mobile/gateway_tester",
+          defaultBranch: "dev",
+          androidEnabled: true,
+          iosEnabled: false,
+          isActive: true,
+        },
+      });
+    }
+
+    const existingProfile = await prisma.forgeBuildProfile.findFirst({
+      where: { applicationId: gatewayApp.id, name: "debug-demo" },
+    });
+    if (!existingProfile) {
+      await prisma.forgeBuildProfile.create({
+        data: {
+          applicationId: gatewayApp.id,
+          name: "debug-demo",
+          description: "Debug APK for PM walkthrough builds.",
+          dartEntryPoint: "lib/main.dart",
+          androidArtifactType: "apk",
+          androidBuildMode: "debug",
+          timeoutMinutes: 90,
+          isActive: true,
+        },
+      });
+    }
+    console.log("Seeded Forge application Masarat Gateway Tester + debug-demo profile (JUM).");
+  }
+
+  await seedCatalog(prisma);
+  await seedCatalogInventory(prisma);
+  const env = loadEnv();
+  await seedConnectionTokensFromEnv(prisma, env);
+  await seedHelmGithubRepository(prisma, catalogEnvFrom(env));
+
   console.log(
-    "Sign-in accounts: lead@local.dev, assistant@local.dev, forge-admin@local.dev, pm@local.dev",
+    `Sign-in accounts: lead@local.dev, assistant@local.dev, forge-admin@local.dev, ${forgePmEmail}`,
   );
   console.log(
     "Passwords: SEED_LEAD_PASSWORD / SEED_ASSISTANT_PASSWORD / SEED_FORGE_ADMIN_PASSWORD / SEED_FORGE_PM_PASSWORD",

@@ -1,23 +1,37 @@
 import { Link } from "react-router-dom";
+import { Table } from "@mantine/core";
 import { useQuery } from "@tanstack/react-query";
-import type { TriageItemDto } from "@office/types";
+import type { PageMeta, TriageItemDto } from "@office/types";
+import { useMemo } from "react";
 import { useApi } from "../useApi";
 import { PageHeader } from "../components/PageHeader";
 import { DataTableSkeleton } from "../components/skeletons/AppSkeletons";
+import { AppDataTable } from "../components/ui/AppDataTable";
+import { ListQueryBar, TablePagination } from "../components/ui/ListQueryBar";
+import { useListQueryState } from "../hooks/useListQueryState";
+import { buildListQuery, pickPageMeta } from "../lib/listQuery";
 
 export function PriorityPage() {
   const { request } = useApi();
+  const { page, setPage, limit, setLimit, searchInput, search, onSearchChange } =
+    useListQueryState(25);
+
+  const listUrl = useMemo(
+    () => `/api/triage-items/priority-queue?${buildListQuery({ page, limit, q: search })}`,
+    [page, limit, search],
+  );
 
   const q = useQuery({
-    queryKey: ["triage-priority"],
+    queryKey: ["triage-priority", listUrl],
     queryFn: async () => {
-      const res = await request("/api/triage-items/priority-queue");
+      const res = await request(listUrl);
       if (!res.ok) throw new Error("load_failed");
-      return (await res.json()) as { items: TriageItemDto[] };
+      return (await res.json()) as { items: TriageItemDto[] } & PageMeta;
     },
   });
 
   const items = q.data?.items ?? [];
+  const pageMeta = pickPageMeta(q.data);
 
   return (
     <div className="app-page app-page--priority">
@@ -36,11 +50,19 @@ export function PriorityPage() {
         <div className="card__head">
           <h2 className="card__title">Queue</h2>
           <p className="card__sub" style={{ margin: 0 }}>
-            {q.data ? `${items.length} open` : "Loading…"}
+            {q.data ? `${pageMeta.total} open` : "Loading…"}
           </p>
         </div>
+
+        <ListQueryBar
+          search={searchInput}
+          onSearchChange={onSearchChange}
+          searchPlaceholder="Search title, program, assignee…"
+        />
+
         {q.isLoading && (
           <DataTableSkeleton
+            embedded
             columns={6}
             columnLabels={["Title", "Category", "Age (days)", "Status", "Assignee", "Flags"]}
             tableLabel="Loading priority queue"
@@ -52,64 +74,63 @@ export function PriorityPage() {
           </p>
         )}
         {q.data && (
-          <div className="data-table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Title</th>
-                  <th>Category</th>
-                  <th>Age</th>
-                  <th>Status</th>
-                  <th>Assignee</th>
-                  <th>Flags</th>
-                </tr>
-              </thead>
-              <tbody>
+          <>
+            <AppDataTable embedded aria-label="Priority queue">
+              <Table.Thead>
+                <Table.Tr>
+                  <Table.Th>Title</Table.Th>
+                  <Table.Th>Category</Table.Th>
+                  <Table.Th>Age</Table.Th>
+                  <Table.Th>Status</Table.Th>
+                  <Table.Th>Assignee</Table.Th>
+                  <Table.Th>Flags</Table.Th>
+                </Table.Tr>
+              </Table.Thead>
+              <Table.Tbody>
                 {items.map((it) => (
-                  <tr key={it.id} data-escalated={it.escalated || undefined}>
-                    <td>
+                  <Table.Tr key={it.id} data-escalated={it.escalated || undefined}>
+                    <Table.Td>
                       <Link to={`/triage/${it.id}`}>{it.title}</Link>
                       {it.program && (
                         <div className="preview-line" title="Program">
                           {it.program}
                         </div>
                       )}
-                    </td>
-                    <td>
+                    </Table.Td>
+                    <Table.Td>
                       <span className="pill pill--cat" data-category={it.category}>
                         {it.category}
                       </span>
-                    </td>
-                    <td className="muted">
-                      {it.ageDays !== undefined ? `${it.ageDays}d` : "—"}
-                    </td>
-                    <td>
+                    </Table.Td>
+                    <Table.Td>{it.ageDays ?? "—"}</Table.Td>
+                    <Table.Td>
                       <span className="pill pill--status" data-status={it.status}>
                         {it.status}
                       </span>
-                    </td>
-                    <td className="muted">{it.assigneeName ?? "—"}</td>
-                    <td>
-                      {it.escalated && (
-                        <span className="badge badge--warn" style={{ marginRight: 4 }}>
-                          Escalated
-                        </span>
-                      )}
-                      {it.sourceType && it.sourceType !== "manual" && (
-                        <span className="muted">{it.sourceType}</span>
-                      )}
-                    </td>
-                  </tr>
+                    </Table.Td>
+                    <Table.Td className="muted">{it.assigneeName ?? "—"}</Table.Td>
+                    <Table.Td>
+                      {it.escalated && <span className="pill pill--warn">Escalated</span>}
+                    </Table.Td>
+                  </Table.Tr>
                 ))}
-              </tbody>
-            </table>
+              </Table.Tbody>
+            </AppDataTable>
             {items.length === 0 && (
-              <div className="empty-state" role="status" style={{ margin: "0.75rem" }}>
-                <strong>Nothing in the priority queue</strong>
-                When you add blockers, risks, or mark items as escalated, they land here.
+              <div className="empty-state" role="status">
+                <strong>Queue is clear</strong>
+                No open blockers, risks, or escalations match your search.
               </div>
             )}
-          </div>
+            <TablePagination
+              page={pageMeta.page}
+              totalPages={pageMeta.totalPages}
+              total={pageMeta.total}
+              limit={pageMeta.limit}
+              onPageChange={setPage}
+              onLimitChange={setLimit}
+            />
+          </>
         )}
       </section>
     </div>

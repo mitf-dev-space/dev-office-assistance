@@ -10,8 +10,11 @@ import { createGraphClient } from "../graphClient.js";
 import { graphStatusCode, readGraphToken } from "../graphHelpers.js";
 import { prisma } from "../db.js";
 import { requireDbUser } from "../userService.js";
+import { parseListQuery, withPageMeta } from "../lib/listQuery.js";
 import { getCurrentWeekRange } from "../weekRange.js";
 import { patchGraphTodoToMatchTriage } from "../todoTriageService.js";
+import { enrichmentFromRawMetadata } from "../clickup/enrichment.js";
+import { toExternalWorkItemDto } from "../externalWork/upsert.js";
 
 const categoryZ = z.enum([
   "blocker",
@@ -27,7 +30,7 @@ const statusZ = z.enum([
   "done",
   "dropped",
 ]);
-const sourceZ = z.enum(["outlook", "manual", "microsoft_todo"]);
+const sourceZ = z.enum(["outlook", "manual", "microsoft_todo", "clickup"]);
 
 const createBody = z.object({
   title: z.string().min(1).max(500),
@@ -72,7 +75,18 @@ function assigneeNameFromDeveloper(u: AssigneeForDto | null | undefined) {
 
 function toDto(
   row: TriageItem & { assignee?: AssigneeForDto | null },
-  extra?: { attachments?: AttachmentListRow[]; attachmentCount?: number; ageDays?: number },
+  extra?: {
+    attachments?: AttachmentListRow[];
+    attachmentCount?: number;
+    ageDays?: number;
+    externalWorkItems?: ReturnType<typeof toExternalWorkItemDto>[];
+    clickUpAssignees?: Array<{
+      id: string;
+      username: string | null;
+      email: string | null;
+      profilePicture: string | null;
+    }>;
+  },
 ) {
   const base = {
     id: row.id,
@@ -85,6 +99,9 @@ function toDto(
     snoozedUntil: row.snoozedUntil?.toISOString() ?? null,
     assigneeDeveloperId: row.assigneeDeveloperId,
     ...(row.assignee != null ? { assigneeName: assigneeNameFromDeveloper(row.assignee) } : {}),
+    ...(extra?.clickUpAssignees?.length
+      ? { clickUpAssignees: extra.clickUpAssignees }
+      : {}),
     sourceType: row.sourceType,
     graphMessageId: row.graphMessageId,
     graphWebLink: row.graphWebLink,
@@ -98,6 +115,7 @@ function toDto(
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
     ...(extra?.ageDays !== undefined ? { ageDays: extra.ageDays } : {}),
+    ...(extra?.externalWorkItems ? { externalWorkItems: extra.externalWorkItems } : {}),
   };
   if (extra?.attachments) {
     return {
@@ -185,28 +203,51 @@ export async function registerTriageRoutes(app: FastifyInstance) {
     const me = await requireDbUser(auth, reply);
     if (!me) return;
 
-    const now = new Date();
-    const items = await prisma.triageItem.findMany({
-      where: {
-        status: { notIn: ["done", "dropped"] },
+    const raw = request.query as Record<string, string | undefined>;
+    const pq = parseListQuery(raw);
+    const and: Prisma.TriageItemWhereInput[] = [
+      { status: { notIn: ["done", "dropped"] } },
+      {
+        OR: [{ category: { in: ["blocker", "risk"] } }, { escalated: true }],
+      },
+    ];
+    if (pq.q) {
+      and.push({
         OR: [
-          { category: { in: ["blocker", "risk"] } },
-          { escalated: true },
+          { title: { contains: pq.q, mode: "insensitive" } },
+          { program: { contains: pq.q, mode: "insensitive" } },
+          { assignee: { displayName: { contains: pq.q, mode: "insensitive" } } },
         ],
-      },
-      orderBy: [{ escalated: "desc" }, { createdAt: "asc" }],
-      include: {
-        assignee: { select: { displayName: true } },
-        _count: { select: { attachments: true } },
-      },
-    });
-    return {
-      items: items.map((it) => {
-        const ageMs = now.getTime() - it.createdAt.getTime();
-        const ageDays = Math.max(0, Math.floor(ageMs / 86_400_000));
-        return toDto(it, { attachmentCount: it._count.attachments, ageDays });
+      });
+    }
+    const where: Prisma.TriageItemWhereInput = { AND: and };
+
+    const now = new Date();
+    const [items, total] = await Promise.all([
+      prisma.triageItem.findMany({
+        where,
+        skip: pq.skip,
+        take: pq.limit,
+        orderBy: [{ escalated: "desc" }, { createdAt: "asc" }],
+        include: {
+          assignee: { select: { displayName: true } },
+          _count: { select: { attachments: true } },
+        },
       }),
-    };
+      prisma.triageItem.count({ where }),
+    ]);
+    return withPageMeta(
+      {
+        items: items.map((it) => {
+          const ageMs = now.getTime() - it.createdAt.getTime();
+          const ageDays = Math.max(0, Math.floor(ageMs / 86_400_000));
+          return toDto(it, { attachmentCount: it._count.attachments, ageDays });
+        }),
+      },
+      pq.page,
+      pq.limit,
+      total,
+    );
   });
 
   app.get("/api/triage-items", async (request, reply) => {
@@ -215,6 +256,7 @@ export async function registerTriageRoutes(app: FastifyInstance) {
     if (!me) return;
 
     const q = request.query as Record<string, string | undefined>;
+    const pq = parseListQuery(q);
     const status = q.status ? statusZ.safeParse(q.status) : null;
     if (q.status && !status?.success) {
       return reply.status(400).send({ error: "invalid_status" });
@@ -224,50 +266,75 @@ export async function registerTriageRoutes(app: FastifyInstance) {
       return reply.status(400).send({ error: "invalid_category" });
     }
 
-    const where: Prisma.TriageItemWhereInput = {};
-    if (status?.success) where.status = status.data;
-    if (category?.success) where.category = category.data;
-    if (q.assigneeDeveloperId) where.assigneeDeveloperId = q.assigneeDeveloperId;
+    const and: Prisma.TriageItemWhereInput[] = [];
+    if (status?.success) and.push({ status: status.data });
+    if (category?.success) and.push({ category: category.data });
+    if (q.assigneeDeveloperId) and.push({ assigneeDeveloperId: q.assigneeDeveloperId });
     if (q.program && q.program.trim()) {
-      where.program = q.program.trim();
+      and.push({ program: q.program.trim() });
     }
 
     const now = new Date();
     if (q.overdue === "true") {
-      where.dueAt = { lt: now };
-      where.status = { notIn: ["done", "dropped"] };
+      and.push({ dueAt: { lt: now }, status: { notIn: ["done", "dropped"] } });
     }
     if (q.thisWeek === "true") {
       const { start, end } = getCurrentWeekRange(now);
-      where.dueAt = { gte: start, lt: end };
-      where.status = { notIn: ["done", "dropped"] };
+      and.push({
+        dueAt: { gte: start, lt: end },
+        status: { notIn: ["done", "dropped"] },
+      });
     }
     if (q.dueBefore) {
-      where.dueAt = {
-        ...(where.dueAt as object),
-        lt: new Date(q.dueBefore),
-      };
+      and.push({ dueAt: { lt: new Date(q.dueBefore) } });
     }
     if (q.dueAfter) {
-      where.dueAt = {
-        ...(where.dueAt as object),
-        gt: new Date(q.dueAfter),
-      };
+      and.push({ dueAt: { gt: new Date(q.dueAfter) } });
+    }
+    if (pq.q) {
+      and.push({
+        OR: [
+          { title: { contains: pq.q, mode: "insensitive" } },
+          { program: { contains: pq.q, mode: "insensitive" } },
+          { assignee: { displayName: { contains: pq.q, mode: "insensitive" } } },
+        ],
+      });
     }
 
-    const items = await prisma.triageItem.findMany({
-      where,
-      orderBy: [{ dueAt: "asc" }, { updatedAt: "desc" }],
-      include: {
-        assignee: { select: { displayName: true } },
-        _count: { select: { attachments: true } },
+    const where: Prisma.TriageItemWhereInput = and.length ? { AND: and } : {};
+
+    const [items, total] = await Promise.all([
+      prisma.triageItem.findMany({
+        where,
+        skip: pq.skip,
+        take: pq.limit,
+        orderBy: [{ dueAt: "asc" }, { updatedAt: "desc" }],
+        include: {
+          assignee: { select: { displayName: true } },
+          _count: { select: { attachments: true } },
+          externalWorkItems: {
+            where: { provider: "clickup" },
+            select: { rawMetadata: true },
+            take: 1,
+          },
+        },
+      }),
+      prisma.triageItem.count({ where }),
+    ]);
+    return withPageMeta(
+      {
+        items: items.map((it) => {
+          const helm = enrichmentFromRawMetadata(it.externalWorkItems[0]?.rawMetadata);
+          return toDto(it, {
+            attachmentCount: it._count.attachments,
+            clickUpAssignees: helm?.assignees,
+          });
+        }),
       },
-    });
-    return {
-      items: items.map((it) =>
-        toDto(it, { attachmentCount: it._count.attachments }),
-      ),
-    };
+      pq.page,
+      pq.limit,
+      total,
+    );
   });
 
   app.get("/api/triage-items/:id", async (request, reply) => {
@@ -281,10 +348,17 @@ export async function registerTriageRoutes(app: FastifyInstance) {
       include: {
         assignee: { select: { displayName: true } },
         attachments: { orderBy: { createdAt: "asc" } },
+        externalWorkItems: true,
       },
     });
     if (!item) return reply.status(404).send({ error: "not_found" });
-    return toDto(item, { attachments: item.attachments });
+    const clickUpEwi = item.externalWorkItems.find((e) => e.provider === "clickup");
+    const helm = enrichmentFromRawMetadata(clickUpEwi?.rawMetadata);
+    return toDto(item, {
+      attachments: item.attachments,
+      externalWorkItems: item.externalWorkItems.map(toExternalWorkItemDto),
+      clickUpAssignees: helm?.assignees,
+    });
   });
 
   app.post("/api/triage-items", async (request, reply) => {

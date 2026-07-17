@@ -1,8 +1,7 @@
-import { useId, useState } from "react";
+import { useId, useMemo, useState } from "react";
 import {
   Badge,
   Button,
-  Card,
   Group,
   Stack,
   Switch,
@@ -11,11 +10,15 @@ import {
   TextInput,
 } from "@mantine/core";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { ForgeBankDto } from "@office/types";
+import type { ForgeBankDto, PageMeta } from "@office/types";
 import { useApi } from "../../useApi";
 import { FormModal } from "../../components/modals/FormModal";
+import { AppDataTable } from "../../components/ui/AppDataTable";
+import { ListQueryBar, TablePagination } from "../../components/ui/ListQueryBar";
+import { useListQueryState } from "../../hooks/useListQueryState";
+import { buildListQuery, pickPageMeta } from "../../lib/listQuery";
 
-type BanksResponse = { items: ForgeBankDto[] };
+type BanksResponse = { items: ForgeBankDto[] } & PageMeta;
 
 export function ForgeBanksPanel() {
   const { request } = useApi();
@@ -25,15 +28,24 @@ export function ForgeBanksPanel() {
   const [name, setName] = useState("");
   const [code, setCode] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
+  const { page, setPage, limit, setLimit, searchInput, search, onSearchChange } =
+    useListQueryState(25);
+
+  const listUrl = useMemo(
+    () => `/api/forge/banks?${buildListQuery({ page, limit, q: search })}`,
+    [page, limit, search],
+  );
 
   const banksQuery = useQuery({
-    queryKey: ["forge", "banks"],
+    queryKey: ["forge", "banks", listUrl],
     queryFn: async () => {
-      const res = await request("/api/forge/banks");
+      const res = await request(listUrl);
       if (!res.ok) throw new Error("forge_banks_failed");
       return (await res.json()) as BanksResponse;
     },
   });
+
+  const pageMeta = pickPageMeta(banksQuery.data);
 
   const createMut = useMutation({
     mutationFn: async () => {
@@ -90,9 +102,14 @@ export function ForgeBanksPanel() {
         </Text>
       )}
 
-      <Card withBorder padding={0} radius="md">
-        <Table striped highlightOnHover>
-          <Table.Thead>
+      <ListQueryBar
+        search={searchInput}
+        onSearchChange={onSearchChange}
+        searchPlaceholder="Search name or code…"
+      />
+
+      <AppDataTable aria-label="Forge banks">
+        <Table.Thead>
             <Table.Tr>
               <Table.Th>Name</Table.Th>
               <Table.Th>Code</Table.Th>
@@ -145,8 +162,16 @@ export function ForgeBanksPanel() {
               </Table.Tr>
             ))}
           </Table.Tbody>
-        </Table>
-      </Card>
+      </AppDataTable>
+
+      <TablePagination
+        page={pageMeta.page}
+        totalPages={pageMeta.totalPages}
+        total={pageMeta.total}
+        limit={pageMeta.limit}
+        onPageChange={setPage}
+        onLimitChange={setLimit}
+      />
 
       <FormModal
         opened={createOpen}

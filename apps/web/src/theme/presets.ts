@@ -10,8 +10,10 @@ export type AppThemePreset = {
   /** Shown in the top bar. */
   label: string;
   shortLabel: string;
-  /** PWA / mobile chrome hint. */
+  /** PWA / mobile chrome hint (light mode). */
   metaThemeColor: string;
+  /** PWA / mobile chrome hint (dark mode). */
+  metaThemeColorDark: string;
   /** Mantine primary palette name. */
   mantinePrimary: "red" | "teal" | "violet";
   swatch: string;
@@ -27,6 +29,7 @@ export const THEME_PRESETS: AppThemePreset[] = [
     label: "Ember",
     shortLabel: "Ember",
     metaThemeColor: "#dc2626",
+    metaThemeColorDark: "#0c0a0a",
     mantinePrimary: "red",
     swatch: "#dc2626",
     gradient: { from: "red.8", to: "red.4", deg: 128 },
@@ -37,6 +40,7 @@ export const THEME_PRESETS: AppThemePreset[] = [
     label: "Harbor",
     shortLabel: "Harbor",
     metaThemeColor: "#0f766e",
+    metaThemeColorDark: "#0f1419",
     mantinePrimary: "teal",
     swatch: "#0d9488",
     gradient: { from: "teal.8", to: "teal.3", deg: 140 },
@@ -47,6 +51,7 @@ export const THEME_PRESETS: AppThemePreset[] = [
     label: "Nebula",
     shortLabel: "Nebula",
     metaThemeColor: "#5b21b6",
+    metaThemeColorDark: "#120f1f",
     mantinePrimary: "violet",
     swatch: "#7c3aed",
     gradient: { from: "violet.8", to: "violet.3", deg: 132 },

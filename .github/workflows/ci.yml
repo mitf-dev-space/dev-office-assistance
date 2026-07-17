@@ -8,7 +8,7 @@ on:
 
 jobs:
   build:
-    name: Monorepo build & lint
+    name: Monorepo quality
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -16,9 +16,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
+          cache: npm
 
       - name: Install dependencies
-        run: npm install --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
 
       - name: Build
         run: npm run build
@@ -31,3 +32,42 @@ jobs:
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/office_assistance
           AUTH_JWT_SECRET: ci-test-jwt-secret-at-least-32-characters-long
+          NODE_ENV: test
+
+      - name: Production env fail-fast (missing AUTH_JWT_SECRET)
+        working-directory: apps/api
+        run: |
+          set +e
+          out=$(NODE_ENV=production DATABASE_URL=postgresql://u:p@localhost:5432/db \
+            CORS_ORIGIN=http://10.100.235.21:46810 \
+            npx tsx -e "import { loadEnv } from './src/env.ts'; loadEnv();" 2>&1)
+          code=$?
+          echo "$out"
+          if [ $code -eq 0 ]; then
+            echo "ERROR: expected loadEnv to fail without AUTH_JWT_SECRET" >&2
+            exit 1
+          fi
+          echo "$out" | grep -qi 'AUTH_JWT_SECRET\|Invalid environment'
+          echo "fail-fast OK"
+
+      - name: Compose config validation
+        run: |
+          cp deploy/.env.production.example deploy/.env.production
+          docker compose --env-file deploy/.env.production -f deploy/compose.production.yml config --quiet
+
+      - name: Docker build api (no push)
+        run: docker build -f apps/api/Dockerfile -t helm-ci-api:ci .
+
+      - name: Docker build web (no push)
+        run: docker build -f apps/web/Dockerfile --build-arg VITE_API_BASE_URL=http://10.100.235.21:46811 -t helm-ci-web:ci .
+
+      - name: Dependency audit (report)
+        run: npm audit --omit=dev --audit-level=critical || true
+
+      - name: Secret scan (basic)
+        run: |
+          if git grep -nE '(AUTH_JWT_SECRET|POSTGRES_PASSWORD|DATABASE_URL)=.{16,}' -- '.env' '.env.production' 'deploy/.env.production' 2>/dev/null; then
+            echo "ERROR: committed secret-looking env files" >&2
+            exit 1
+          fi
+          echo "secret scan OK (tracked env files absent)"

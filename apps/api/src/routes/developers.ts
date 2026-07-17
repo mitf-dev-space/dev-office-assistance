@@ -3,6 +3,7 @@ import { z } from "zod";
 import { Prisma, type RosterPosition } from "@prisma/client";
 import { prisma } from "../db.js";
 import { requireDbUser } from "../userService.js";
+import { parseListQuery, withPageMeta } from "../lib/listQuery.js";
 
 function trimOrNull(s: string | undefined): string | null {
   if (s === undefined) return null;
@@ -118,10 +119,36 @@ export async function registerDeveloperRoutes(app: FastifyInstance) {
     const auth = request.authUser;
     const me = await requireDbUser(auth, reply);
     if (!me) return;
-    const rows = await prisma.developer.findMany({
-      orderBy: [{ displayName: "asc" }],
-    });
-    return { developers: rows.map((d) => toDto(d)) };
+    const raw = request.query as Record<string, string | undefined>;
+    const pq = parseListQuery(raw, { maxLimit: 500 });
+    const and: Prisma.DeveloperWhereInput[] = [];
+    if (pq.q) {
+      and.push({
+        OR: [
+          { displayName: { contains: pq.q, mode: "insensitive" } },
+          { skills: { contains: pq.q, mode: "insensitive" } },
+          { workEmail: { contains: pq.q, mode: "insensitive" } },
+          { jobTitle: { contains: pq.q, mode: "insensitive" } },
+          { location: { contains: pq.q, mode: "insensitive" } },
+        ],
+      });
+    }
+    const where: Prisma.DeveloperWhereInput = and.length ? { AND: and } : {};
+    const [rows, total] = await Promise.all([
+      prisma.developer.findMany({
+        where,
+        skip: pq.skip,
+        take: pq.limit,
+        orderBy: [{ displayName: "asc" }],
+      }),
+      prisma.developer.count({ where }),
+    ]);
+    return withPageMeta(
+      { developers: rows.map((d) => toDto(d)) },
+      pq.page,
+      pq.limit,
+      total,
+    );
   });
 
   app.get("/api/developers/:id", async (request, reply) => {

@@ -1,12 +1,17 @@
 import { useCallback, useEffect, useId, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
+import { Table } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { PlanningItemDto, PlanningStatus } from "@office/types";
+import type { PageMeta, PlanningItemDto, PlanningStatus } from "@office/types";
 import { PLANNING_STATUSES } from "@office/types";
 import { useApi } from "../useApi";
 import { PageHeader } from "../components/PageHeader";
 import { DataTableSkeleton } from "../components/skeletons/AppSkeletons";
+import { AppDataTable } from "../components/ui/AppDataTable";
+import { ListQueryBar, TablePagination } from "../components/ui/ListQueryBar";
+import { useListQueryState } from "../hooks/useListQueryState";
+import { buildListQuery, pickPageMeta } from "../lib/listQuery";
 import { PlanningKanbanBoard } from "../components/planning/PlanningKanbanBoard";
 import { PLANNING_STATUS_LABEL } from "../constants/planningLabels";
 import { PlanningInitiativeModal } from "../components/planning/PlanningInitiativeModal";
@@ -28,23 +33,38 @@ export function PlanningPage() {
   const planningEdit = searchParams.get("edit");
   const [planningModalMode, setPlanningModalMode] = useState<"create" | "edit">("create");
   const [planningModalOpened, { open: openPlanningModal, close: closePlanningModal }] = useDisclosure(false);
+  const { page, setPage, limit, setLimit, searchInput, search, onSearchChange, resetPage } =
+    useListQueryState(25);
+
+  const boardLimit = 500;
+  const listUrl = useMemo(() => {
+    const qs = buildListQuery({
+      page: viewMode === "board" ? 1 : page,
+      limit: viewMode === "board" ? boardLimit : limit,
+      q: search,
+      filters: {
+        status: statusFilter || undefined,
+        department: departmentFilter || undefined,
+      },
+    });
+    return `/api/planning?${qs}`;
+  }, [viewMode, page, limit, search, statusFilter, departmentFilter]);
 
   const listQuery = useQuery({
-    queryKey: ["planning"],
+    queryKey: ["planning", listUrl],
     queryFn: async () => {
-      const res = await request("/api/planning");
+      const res = await request(listUrl);
       if (!res.ok) throw new Error("list_failed");
-      return (await res.json()) as { items: PlanningItemDto[] };
+      return (await res.json()) as { items: PlanningItemDto[] } & PageMeta;
     },
   });
 
   const items = listQuery.data?.items ?? [];
+  const pageMeta = pickPageMeta(listQuery.data);
 
-  const itemsAfterDepartment = useMemo(() => {
-    if (!departmentFilter.trim()) return items;
-    const want = departmentFilter.trim();
-    return items.filter((i) => (i.department?.trim() || "") === want);
-  }, [items, departmentFilter]);
+  useEffect(() => {
+    resetPage();
+  }, [statusFilter, departmentFilter, resetPage]);
 
   const activeFilterCount = useMemo(
     () => [statusFilter, departmentFilter].filter(Boolean).length,
@@ -52,10 +72,7 @@ export function PlanningPage() {
   );
   const planningFiltersLegendId = useId();
 
-  const filteredForTable = useMemo(() => {
-    if (!statusFilter) return itemsAfterDepartment;
-    return itemsAfterDepartment.filter((i) => i.status === statusFilter);
-  }, [itemsAfterDepartment, statusFilter]);
+  const filteredForTable = items;
 
   const announceBoard = useCallback((message: string) => {
     setLiveBoardMsg(message);
@@ -158,6 +175,17 @@ export function PlanningPage() {
       </div>
 
       <section className="card">
+        <ListQueryBar
+          search={searchInput}
+          onSearchChange={onSearchChange}
+          searchPlaceholder="Search initiatives…"
+          activeFilterCount={activeFilterCount}
+          onClearFilters={() => {
+            setStatusFilter("");
+            setDepartmentFilter("");
+            resetPage();
+          }}
+        />
         <details className="app-filters-disclosure">
           <summary className="app-filters-disclosure__summary">
             <span className="app-filters-disclosure__summary-left">
@@ -205,6 +233,7 @@ export function PlanningPage() {
                   onChange={(e) => {
                     const v = e.target.value;
                     setStatusFilter(v === "" ? "" : (v as PlanningStatus));
+                    resetPage();
                   }}
                 >
                   <option value="">All statuses</option>
@@ -220,7 +249,10 @@ export function PlanningPage() {
                 <select
                   id="pdept"
                   value={departmentFilter}
-                  onChange={(e) => setDepartmentFilter(e.target.value)}
+                  onChange={(e) => {
+                    setDepartmentFilter(e.target.value);
+                    resetPage();
+                  }}
                 >
                   <option value="">All areas</option>
                   {DEV_DEPARTMENT_SUGGESTIONS.map((d) => (
@@ -271,7 +303,7 @@ export function PlanningPage() {
         {listQuery.isError && <p role="alert">Could not load planning items.</p>}
         {listQuery.data && viewMode === "board" && (
           <PlanningKanbanBoard
-            items={itemsAfterDepartment}
+            items={items}
             statusFilter={statusFilter}
             disabled={moveStatusMut.isPending}
             announce={announceBoard}
@@ -279,53 +311,67 @@ export function PlanningPage() {
           />
         )}
         {listQuery.data && viewMode === "table" && (
-          <div className="data-table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Target</th>
-                  <th>Title</th>
-                  <th>Status</th>
-                  <th>Area</th>
-                  <th>Program</th>
-                  <th> </th>
-                </tr>
-              </thead>
-              <tbody>
+          <>
+            <AppDataTable embedded aria-label="Planning initiatives">
+              <Table.Thead>
+                <Table.Tr>
+                  <Table.Th>Target</Table.Th>
+                  <Table.Th>Title</Table.Th>
+                  <Table.Th>Status</Table.Th>
+                  <Table.Th>Area</Table.Th>
+                  <Table.Th>Program</Table.Th>
+                  <Table.Th w={72} />
+                </Table.Tr>
+              </Table.Thead>
+              <Table.Tbody>
                 {filteredForTable.map((p) => (
-                  <tr key={p.id}>
-                    <td className="muted">{p.targetDate ? p.targetDate.slice(0, 10) : "—"}</td>
-                    <td>
+                  <Table.Tr key={p.id}>
+                    <Table.Td className="muted">{p.targetDate ? p.targetDate.slice(0, 10) : "—"}</Table.Td>
+                    <Table.Td>
                       <Link
-                        to={{ pathname: "/planning", search: new URLSearchParams({ edit: p.id }).toString() }}
+                        to={{
+                          pathname: "/planning",
+                          search: new URLSearchParams({ edit: p.id }).toString(),
+                        }}
                       >
                         {p.title}
                       </Link>
-                    </td>
-                    <td>
+                    </Table.Td>
+                    <Table.Td>
                       <span className="badge">{p.status}</span>
-                    </td>
-                    <td className="muted">{p.department ?? "—"}</td>
-                    <td className="muted">{p.program?.trim() ? p.program : "—"}</td>
-                    <td>
+                    </Table.Td>
+                    <Table.Td className="muted">{p.department ?? "—"}</Table.Td>
+                    <Table.Td className="muted">{p.program?.trim() ? p.program : "—"}</Table.Td>
+                    <Table.Td>
                       <Link
-                        to={{ pathname: "/planning", search: new URLSearchParams({ edit: p.id }).toString() }}
+                        to={{
+                          pathname: "/planning",
+                          search: new URLSearchParams({ edit: p.id }).toString(),
+                        }}
                         className="link-out"
                       >
                         Edit
                       </Link>
-                    </td>
-                  </tr>
+                    </Table.Td>
+                  </Table.Tr>
                 ))}
-              </tbody>
-            </table>
+              </Table.Tbody>
+            </AppDataTable>
             {filteredForTable.length === 0 && (
-              <div className="empty-state" role="status" style={{ margin: "0.75rem" }}>
+              <div className="empty-state" role="status" style={{ margin: "0.75rem 0 0" }}>
                 <strong>No initiatives match</strong>
                 Add one with &quot;Add initiative&quot; above, or change the status / area filters.
               </div>
             )}
-          </div>
+            <TablePagination
+              page={pageMeta.page}
+              totalPages={pageMeta.totalPages}
+              total={pageMeta.total}
+              limit={pageMeta.limit}
+              onPageChange={setPage}
+              onLimitChange={setLimit}
+            />
+          </>
         )}
       </section>
       <PlanningInitiativeModal

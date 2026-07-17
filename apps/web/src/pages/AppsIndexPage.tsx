@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
+import { canAccessForge } from "../lib/forge/roles";
 import { PageHeader } from "../components/PageHeader";
 
 /**
@@ -8,6 +9,7 @@ import { PageHeader } from "../components/PageHeader";
 export function AppsIndexPage() {
   const { user } = useAuth();
   const isLead = user?.role === "lead";
+  const showForge = user ? canAccessForge(user.role) : false;
 
   return (
     <div className="app-page">
@@ -38,7 +40,22 @@ export function AppsIndexPage() {
         )}
       </p>
       <ul className="card" style={{ listStyle: "none", margin: 0, padding: "1rem 1.25rem" }}>
-        <li style={{ borderBottom: "1px solid var(--mantine-color-default-border, rgba(0,0,0,0.08))", padding: "0.75rem 0" }}>
+        {showForge && (
+          <li
+            style={{
+              borderBottom: "1px solid var(--color-border)",
+              padding: "0.75rem 0",
+            }}
+          >
+            <Link to="/forge" style={{ fontWeight: 600 }}>
+              Forge · mobile builds
+            </Link>
+            <p className="muted" style={{ margin: "0.35rem 0 0", fontSize: "0.9rem" }}>
+              Request demo Flutter APK builds from approved Git branches and profiles.
+            </p>
+          </li>
+        )}
+        <li style={{ borderBottom: "1px solid var(--color-border)", padding: "0.75rem 0" }}>
           <Link to="/apps/outlook" style={{ fontWeight: 600 }}>
             Outlook
           </Link>
@@ -46,12 +63,20 @@ export function AppsIndexPage() {
             Import messages from a mailbox folder into triage.
           </p>
         </li>
-        <li style={{ padding: "0.75rem 0 0" }}>
+        <li style={{ borderBottom: "1px solid var(--color-border)", padding: "0.75rem 0" }}>
           <Link to="/apps/todo" style={{ fontWeight: 600 }}>
             Microsoft To Do
           </Link>
           <p className="muted" style={{ margin: "0.35rem 0 0", fontSize: "0.9rem" }}>
             Read tasks from your Microsoft To Do lists (Microsoft Graph).
+          </p>
+        </li>
+        <li style={{ padding: "0.75rem 0 0" }}>
+          <Link to="/apps/clickup" style={{ fontWeight: 600 }}>
+            ClickUp
+          </Link>
+          <p className="muted" style={{ margin: "0.35rem 0 0", fontSize: "0.9rem" }}>
+            Connect spaces and lists; import and sync tasks into Triage (shared ExternalWorkItem table).
           </p>
         </li>
       </ul>

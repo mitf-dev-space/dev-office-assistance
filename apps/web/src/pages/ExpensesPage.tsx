@@ -1,12 +1,17 @@
 import { useEffect, useId, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
+import { Table } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { ExpenseDto } from "@office/types";
+import type { ExpenseDto, PageMeta } from "@office/types";
 import { apiViewInNewTab } from "../apiClient";
 import { useApi } from "../useApi";
 import { PageHeader } from "../components/PageHeader";
 import { DataTableSkeleton, MetricStripSkeleton } from "../components/skeletons/AppSkeletons";
+import { AppDataTable } from "../components/ui/AppDataTable";
+import { ListQueryBar, TablePagination } from "../components/ui/ListQueryBar";
+import { useListQueryState } from "../hooks/useListQueryState";
+import { buildListQuery, pickPageMeta } from "../lib/listQuery";
 import { ExpenseEntryModal } from "../components/expenses/ExpenseEntryModal";
 
 function monthStartIso(d: Date) {
@@ -29,18 +34,34 @@ export function ExpensesPage() {
   const [from, setFrom] = useState(monthStartIso(now));
   const [to, setTo] = useState(monthEndIso(now));
   const expenseRangeLegendId = useId();
+  const { page, setPage, limit, setLimit, searchInput, search, onSearchChange, resetPage } =
+    useListQueryState(25);
+
+  useEffect(() => {
+    resetPage();
+  }, [from, to, resetPage]);
+
+  const listUrl = useMemo(
+    () =>
+      `/api/expenses?${buildListQuery({
+        page,
+        limit,
+        q: search,
+        filters: { from, to },
+      })}`,
+    [page, limit, search, from, to],
+  );
 
   const listQuery = useQuery({
-    queryKey: ["expenses", from, to],
+    queryKey: ["expenses", listUrl],
     queryFn: async () => {
-      const p = new URLSearchParams();
-      if (from) p.set("from", from);
-      if (to) p.set("to", to);
-      const res = await request(`/api/expenses?${p.toString()}`);
+      const res = await request(listUrl);
       if (!res.ok) throw new Error("list_failed");
-      return (await res.json()) as { expenses: ExpenseDto[] };
+      return (await res.json()) as { expenses: ExpenseDto[] } & PageMeta;
     },
   });
+
+  const pageMeta = pickPageMeta(listQuery.data);
 
   const summaryQuery = useQuery({
     queryKey: ["expenses-summary", from, to],
@@ -162,7 +183,9 @@ export function ExpensesPage() {
           <div>
             <h2 className="card__title">Entries</h2>
             <p className="card__sub" style={{ marginBottom: 0 }}>
-              In-range rows for the dates above. Use Add to open the form, or follow a title to edit.
+              {listQuery.data
+                ? `${pageMeta.total} in-range entr${pageMeta.total === 1 ? "y" : "ies"}`
+                : "In-range rows for the dates above. Use Add to open the form, or follow a title to edit."}
             </p>
           </div>
           <div className="card__head__actions">
@@ -171,8 +194,14 @@ export function ExpensesPage() {
             </button>
           </div>
         </div>
+        <ListQueryBar
+          search={searchInput}
+          onSearchChange={onSearchChange}
+          searchPlaceholder="Search title, department, category…"
+        />
         {listQuery.isLoading && (
           <DataTableSkeleton
+            embedded
             columns={6}
             columnLabels={["Date", "Title", "Amount", "Department", "Category", "Receipt"]}
             tableLabel="Loading expenses"
@@ -180,40 +209,43 @@ export function ExpensesPage() {
         )}
         {listQuery.isError && <p role="alert">Could not load expenses.</p>}
         {listQuery.data && (
-          <div className="data-table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Date</th>
-                  <th>Title</th>
-                  <th>Amount</th>
-                  <th>Department</th>
-                  <th>Category</th>
-                  <th>Receipt</th>
-                </tr>
-              </thead>
-              <tbody>
+          <>
+            <AppDataTable embedded aria-label="Expense entries">
+              <Table.Thead>
+                <Table.Tr>
+                  <Table.Th>Date</Table.Th>
+                  <Table.Th>Title</Table.Th>
+                  <Table.Th>Amount</Table.Th>
+                  <Table.Th>Department</Table.Th>
+                  <Table.Th>Category</Table.Th>
+                  <Table.Th>Receipt</Table.Th>
+                </Table.Tr>
+              </Table.Thead>
+              <Table.Tbody>
                 {listQuery.data.expenses.map((e) => {
                   const rowBusy =
                     receiptRowMut.isPending && receiptRowMut.variables?.id === e.id;
                   return (
-                    <tr key={e.id}>
-                      <td>{e.expenseDate.slice(0, 10)}</td>
-                      <td>
+                    <Table.Tr key={e.id}>
+                      <Table.Td>{e.expenseDate.slice(0, 10)}</Table.Td>
+                      <Table.Td>
                         <Link
-                          to={{ pathname: "/expenses", search: new URLSearchParams({ edit: e.id }).toString() }}
+                          to={{
+                            pathname: "/expenses",
+                            search: new URLSearchParams({ edit: e.id }).toString(),
+                          }}
                         >
                           {e.title}
                         </Link>
-                      </td>
-                      <td>
+                      </Table.Td>
+                      <Table.Td>
                         {e.currency} {e.amount}
-                      </td>
-                      <td className="muted">{e.department}</td>
-                      <td>
+                      </Table.Td>
+                      <Table.Td className="muted">{e.department}</Table.Td>
+                      <Table.Td>
                         <span className="badge">{e.category}</span>
-                      </td>
-                      <td>
+                      </Table.Td>
+                      <Table.Td>
                         <div className="expense-receipt-cell">
                           <span className="muted expense-receipt-cell__state">
                             {e.hasReceipt ? "Yes" : "—"}
@@ -277,19 +309,27 @@ export function ExpensesPage() {
                             {(receiptRowMut.error as Error).message}
                           </p>
                         )}
-                      </td>
-                    </tr>
+                      </Table.Td>
+                    </Table.Tr>
                   );
                 })}
-              </tbody>
-            </table>
+              </Table.Tbody>
+            </AppDataTable>
             {listQuery.data.expenses.length === 0 && (
-              <div className="empty-state" role="status" style={{ margin: "0.75rem" }}>
+              <div className="empty-state" role="status" style={{ margin: "0.75rem 0 0" }}>
                 <strong>No expenses in this range</strong>
                 Adjust the date range or add an entry with &quot;Add expense&quot;.
               </div>
             )}
-          </div>
+            <TablePagination
+              page={pageMeta.page}
+              totalPages={pageMeta.totalPages}
+              total={pageMeta.total}
+              limit={pageMeta.limit}
+              onPageChange={setPage}
+              onLimitChange={setLimit}
+            />
+          </>
         )}
       </section>
 

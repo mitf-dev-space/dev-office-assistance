@@ -1,8 +1,10 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
+import type { Prisma } from "@prisma/client";
 import { randomUUID } from "node:crypto";
 import { prisma } from "../db.js";
 import { requireDbUser } from "../userService.js";
+import { parseListQuery, withPageMeta } from "../lib/listQuery.js";
 
 const createBody = z.object({
   title: z.string().min(1).max(500),
@@ -29,30 +31,55 @@ export async function registerDecisionRoutes(app: FastifyInstance) {
     const me = await requireDbUser(auth, reply);
     if (!me) return;
 
-    const rows = await prisma.teamDecision.findMany({
-      orderBy: [{ decidedOn: "desc" }, { createdAt: "desc" }],
-      include: {
-        createdBy: { select: { displayName: true } },
-        relatedTriageItem: { select: { id: true, title: true } },
-        relatedPlanningItem: { select: { id: true, title: true } },
+    const raw = request.query as Record<string, string | undefined>;
+    const pq = parseListQuery(raw);
+    const and: Prisma.TeamDecisionWhereInput[] = [];
+    if (pq.q) {
+      and.push({
+        OR: [
+          { title: { contains: pq.q, mode: "insensitive" } },
+          { body: { contains: pq.q, mode: "insensitive" } },
+          { createdBy: { displayName: { contains: pq.q, mode: "insensitive" } } },
+        ],
+      });
+    }
+    const where = and.length ? { AND: and } : {};
+
+    const [rows, total] = await Promise.all([
+      prisma.teamDecision.findMany({
+        where,
+        skip: pq.skip,
+        take: pq.limit,
+        orderBy: [{ decidedOn: "desc" }, { createdAt: "desc" }],
+        include: {
+          createdBy: { select: { displayName: true } },
+          relatedTriageItem: { select: { id: true, title: true } },
+          relatedPlanningItem: { select: { id: true, title: true } },
+        },
+      }),
+      prisma.teamDecision.count({ where }),
+    ]);
+    return withPageMeta(
+      {
+        decisions: rows.map((r) => ({
+          id: r.id,
+          title: r.title,
+          body: r.body,
+          decidedOn: r.decidedOn.toISOString().slice(0, 10),
+          createdById: r.createdById,
+          createdByDisplay: r.createdBy.displayName,
+          relatedTriageItemId: r.relatedTriageItemId,
+          relatedPlanningItemId: r.relatedPlanningItemId,
+          relatedTriageTitle: r.relatedTriageItem?.title ?? null,
+          relatedPlanningTitle: r.relatedPlanningItem?.title ?? null,
+          createdAt: r.createdAt.toISOString(),
+          updatedAt: r.updatedAt.toISOString(),
+        })),
       },
-    });
-    return {
-      decisions: rows.map((r) => ({
-        id: r.id,
-        title: r.title,
-        body: r.body,
-        decidedOn: r.decidedOn.toISOString().slice(0, 10),
-        createdById: r.createdById,
-        createdByDisplay: r.createdBy.displayName,
-        relatedTriageItemId: r.relatedTriageItemId,
-        relatedPlanningItemId: r.relatedPlanningItemId,
-        relatedTriageTitle: r.relatedTriageItem?.title ?? null,
-        relatedPlanningTitle: r.relatedPlanningItem?.title ?? null,
-        createdAt: r.createdAt.toISOString(),
-        updatedAt: r.updatedAt.toISOString(),
-      })),
-    };
+      pq.page,
+      pq.limit,
+      total,
+    );
   });
 
   app.get("/api/decisions/:id", async (request, reply) => {

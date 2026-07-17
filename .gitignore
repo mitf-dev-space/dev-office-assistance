@@ -3,7 +3,10 @@ node_modules
 dist
 .env
 .env.local
+.env.production
 apps/*/.env
+docs/deployment/.env.lan-deploy.local
+deploy/.env.production
 *.log
 .DS_Store
 coverage
@@ -12,3 +15,10 @@ docker/corporate-ca.pem
 data/uploads
 data/forge-artifacts
 data/forge-workspaces
+
+tmp/
+
+
+apps/api/data/forge-artifacts/
+apps/api/data/uploads/
+

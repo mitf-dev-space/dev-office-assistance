@@ -29,7 +29,7 @@ export type ForgeDashboardDto = {
   failedToday: number;
   onlineRunners: number;
   offlineRunners: number;
-  moduleStatus: "bootstrap" | "loop5";
+  moduleStatus: "bootstrap" | "loop5" | "loop10";
 };
 
 export type ForgeBuildRequestSummaryDto = {
@@ -37,6 +37,7 @@ export type ForgeBuildRequestSummaryDto = {
   applicationName: string;
   bankName: string;
   overallStatus: string;
+  gitReference: string;
   createdAt: string;
 };
 

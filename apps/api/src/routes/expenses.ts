@@ -5,6 +5,7 @@ import { resolve } from "node:path";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "../db.js";
 import { requireDbUser } from "../userService.js";
+import { parseListQuery, withPageMeta } from "../lib/listQuery.js";
 import type { Env } from "../env.js";
 import { deleteStoredFile, pathForKey, storeMultipartFile } from "../upload/storage.js";
 
@@ -104,28 +105,50 @@ export async function registerExpensesRoutes(app: FastifyInstance, env: Env) {
     if (!me) return;
 
     const q = request.query as Record<string, string | undefined>;
-    const where: Prisma.ExpenseWhereInput = {};
-    if (q.department) where.department = q.department;
+    const pq = parseListQuery(q);
+    const and: Prisma.ExpenseWhereInput[] = [];
+    if (q.department) and.push({ department: q.department });
     if (q.from) {
       const d = new Date(q.from);
       if (Number.isNaN(d.getTime())) {
         return reply.status(400).send({ error: "invalid_from" });
       }
-      where.expenseDate = { gte: d };
+      and.push({ expenseDate: { gte: d } });
     }
     if (q.to) {
       const d = new Date(q.to);
       if (Number.isNaN(d.getTime())) {
         return reply.status(400).send({ error: "invalid_to" });
       }
-      where.expenseDate = { ...(where.expenseDate as object), lte: d };
+      and.push({ expenseDate: { lte: d } });
     }
+    if (pq.q) {
+      and.push({
+        OR: [
+          { title: { contains: pq.q, mode: "insensitive" } },
+          { description: { contains: pq.q, mode: "insensitive" } },
+          { department: { contains: pq.q, mode: "insensitive" } },
+          { category: { contains: pq.q, mode: "insensitive" } },
+        ],
+      });
+    }
+    const where: Prisma.ExpenseWhereInput = and.length ? { AND: and } : {};
 
-    const rows = await prisma.expense.findMany({
-      where,
-      orderBy: [{ expenseDate: "desc" }, { updatedAt: "desc" }],
-    });
-    return { expenses: rows.map((e) => expenseToDto(e)) };
+    const [rows, total] = await Promise.all([
+      prisma.expense.findMany({
+        where,
+        skip: pq.skip,
+        take: pq.limit,
+        orderBy: [{ expenseDate: "desc" }, { updatedAt: "desc" }],
+      }),
+      prisma.expense.count({ where }),
+    ]);
+    return withPageMeta(
+      { expenses: rows.map((e) => expenseToDto(e)) },
+      pq.page,
+      pq.limit,
+      total,
+    );
   });
 
   app.get("/api/expenses/:id/receipt", async (request, reply) => {

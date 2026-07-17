@@ -10,6 +10,7 @@ import { AppThemeProvider } from "./theme/AppThemeContext";
 import { ThemedMantineProvider } from "./ThemedMantineProvider";
 import "./index.css";
 import "./theme/theme-color-scopes.css";
+import "./theme/theme-dark-scopes.css";
 import "./theme/ThemeSwitcher.css";
 import "./mobile.css";
 

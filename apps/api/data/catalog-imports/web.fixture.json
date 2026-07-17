@@ -1,0 +1,45 @@
+{
+  "source": "spreadsheet",
+  "team": "frontend_web",
+  "systemSlug": "web-portals",
+  "applicationTypeSlug": "web-portal",
+  "componentTypeSlug": "web-application",
+  "rows": [
+    {
+      "name": "webpages-v2",
+      "url": "http://10.10.20.51/front-end/web/webpages-v2.git",
+      "pipeline": "yes",
+      "unitTests": "yes",
+      "mainBranch": "Main",
+      "developmentBranch": "",
+      "staticAnalysis": "no"
+    },
+    {
+      "name": "mitf-office",
+      "url": "http://10.10.20.51/front-end/web/mitf-office.git",
+      "pipeline": "yes",
+      "unitTests": "no",
+      "mainBranch": "Main",
+      "developmentBranch": "",
+      "staticAnalysis": "no"
+    },
+    {
+      "name": "control-panel",
+      "url": "http://10.10.20.51/front-end/web/control-panel.git",
+      "pipeline": "yes",
+      "unitTests": "no",
+      "mainBranch": "Main",
+      "developmentBranch": "",
+      "staticAnalysis": "no"
+    },
+    {
+      "name": "Biller Aggregator",
+      "url": "http://10.10.20.51/front-end/web/biller-aggregator.git",
+      "pipeline": "yes",
+      "unitTests": "no",
+      "mainBranch": "Main",
+      "developmentBranch": "",
+      "staticAnalysis": "no"
+    }
+  ]
+}

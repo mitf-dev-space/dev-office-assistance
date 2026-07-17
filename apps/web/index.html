@@ -1,16 +1,21 @@
 <!doctype html>
-<html lang="en" data-app-theme="ember">
+<html lang="en" data-app-theme="ember" data-color-scheme="light">
   <head>
     <script>
       (function () {
         try {
-          var k = "office-app-theme";
-          var v = localStorage.getItem(k);
+          var themeKey = "office-app-theme";
+          var schemeKey = "office-app-color-scheme";
+          var v = localStorage.getItem(themeKey);
           var t = "ember";
           if (v === "teal" || v === "violet" || v === "ember") t = v;
           document.documentElement.setAttribute("data-app-theme", t);
+          var s = localStorage.getItem(schemeKey);
+          var scheme = s === "dark" ? "dark" : "light";
+          document.documentElement.setAttribute("data-color-scheme", scheme);
         } catch (e) {
           document.documentElement.setAttribute("data-app-theme", "ember");
+          document.documentElement.setAttribute("data-color-scheme", "light");
         }
       })();
     </script>
@@ -19,13 +24,13 @@
       name="viewport"
       content="width=device-width, initial-scale=1, viewport-fit=cover"
     />
-    <meta name="theme-color" content="#0f766e" />
-    <meta name="application-name" content="Cairn" />
+    <meta name="theme-color" content="#dc2626" />
+    <meta name="application-name" content="Helm" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-title" content="Cairn" />
+    <meta name="apple-mobile-web-app-title" content="Helm" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="format-detection" content="telephone=no" />
-    <title>Cairn</title>
+    <title>Helm</title>
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="mask-icon" href="/pwa-icon.svg" color="#0f766e" />
     <link rel="apple-touch-icon" href="/pwa-icon.svg" />

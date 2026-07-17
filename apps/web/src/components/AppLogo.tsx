@@ -11,7 +11,8 @@ type Props = {
   color?: string;
 };
 
-function CairnMark({ px, gradId }: { px: number; gradId: string }) {
+/** Steering-wheel mark — wayfinding + command (Helm). Uses currentColor from the wrapper. */
+function HelmMark({ px, gradId }: { px: number; gradId: string }) {
   return (
     <svg
       width={px}
@@ -23,30 +24,44 @@ function CairnMark({ px, gradId }: { px: number; gradId: string }) {
       focusable="false"
     >
       <defs>
-        <linearGradient id={gradId} x1="6" y1="32" x2="34" y2="6" gradientUnits="userSpaceOnUse">
+        <linearGradient id={gradId} x1="8" y1="32" x2="32" y2="8" gradientUnits="userSpaceOnUse">
           <stop stopColor="currentColor" stopOpacity="0.95" />
-          <stop offset="1" stopColor="currentColor" stopOpacity="0.6" />
+          <stop offset="1" stopColor="currentColor" stopOpacity="0.55" />
         </linearGradient>
       </defs>
-      <g>
-        <rect x="4" y="27" width="32" height="7" rx="2.5" fill={`url(#${gradId})`} />
-        <rect x="7" y="16" width="26" height="7" rx="2.5" fill="currentColor" opacity={0.88} />
-        <rect x="10" y="6" width="20" height="7" rx="2.5" fill="currentColor" />
-      </g>
+      <circle cx="20" cy="20" r="15" stroke={`url(#${gradId})`} strokeWidth="3.5" />
+      <circle cx="20" cy="20" r="4.5" fill="currentColor" />
+      {[0, 45, 90, 135].map((deg) => (
+        <line
+          key={deg}
+          x1="20"
+          y1="20"
+          x2="20"
+          y2="6.5"
+          stroke="currentColor"
+          strokeWidth="2.25"
+          strokeLinecap="round"
+          transform={`rotate(${deg} 20 20)`}
+          opacity={0.9}
+        />
+      ))}
+      <rect x="18.25" y="2" width="3.5" height="5" rx="1.25" fill="currentColor" opacity={0.85} />
     </svg>
   );
 }
 
-/**
- * Stacked cairn mark: three stones, slightly offset (team trail / wayfinding).
- * Uses currentColor from the wrapper for theme-aware tinting.
- */
-export function AppLogo({ variant = "mark", size = "md", className, style, color = "var(--accent)" }: Props) {
+export function AppLogo({
+  variant = "mark",
+  size = "md",
+  className,
+  style,
+  color = "var(--accent)",
+}: Props) {
   const px = MARK_SIZES[size];
-  const gradId = `cairn-g-${useId().replace(/:/g, "")}`;
+  const gradId = `helm-g-${useId().replace(/:/g, "")}`;
   const mark = (
     <span style={{ color, display: "inline-flex", lineHeight: 0 }}>
-      <CairnMark px={px} gradId={gradId} />
+      <HelmMark px={px} gradId={gradId} />
     </span>
   );
 

@@ -1,61 +1,15 @@
-# Server overlay for LAN deployment alongside OmniTest (46xxx ports).
-# Usage: docker compose -f docker-compose.server.yml --env-file .env up -d --no-build
+# DEPRECATED — do not use for new LAN deploys.
+#
+# Canonical production compose lives in:
+#   deploy/compose.production.yml
+# with env file:
+#   deploy/.env.production  (from .env.production.example)
+#
+# On the shared server (10.100.235.21):
+#   ~/compose-dev-office-assistance/
+#
+# Ports (unchanged): web 46810, API 46811 — do not collide with OmniTest 46300/46400.
+#
+# See: deploy/README.md and docs/deployment/production-lan-deploy-runbook.md
 
-services:
-  postgres:
-    image: postgres:16-alpine
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: office_assistance
-    volumes:
-      - office_pg_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d office_assistance"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-
-  api:
-    image: helm-qa-api:latest
-    pull_policy: never
-    environment:
-      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/office_assistance
-      AUTH_JWT_SECRET: ${AUTH_JWT_SECRET}
-      UPLOAD_DIR: /app/data/uploads
-      MAX_UPLOAD_BYTES: ${MAX_UPLOAD_BYTES:-26214400}
-      CORS_ORIGIN: ${CORS_ORIGIN}
-      PORT: "4000"
-      NODE_ENV: production
-      RATE_LIMIT_MAX: ${RATE_LIMIT_MAX:-200}
-      M365_TENANT_ID: ${M365_TENANT_ID:-}
-      M365_CLIENT_ID: ${M365_CLIENT_ID:-}
-      FORGE_ARTIFACTS_ROOT: ${FORGE_ARTIFACTS_ROOT:-data/forge-artifacts}
-      FORGE_ALLOW_IOS_SIMULATION: ${FORGE_ALLOW_IOS_SIMULATION:-false}
-      FORGE_RUNNER_TOKEN_PEPPER: ${FORGE_RUNNER_TOKEN_PEPPER:-}
-    command:
-      - sh
-      - -c
-      - |
-        npm run prisma:migrate -w @office/api && \
-        npm run db:seed -w @office/api && \
-        node apps/api/dist/index.js
-    ports:
-      - "46811:4000"
-    depends_on:
-      postgres:
-        condition: service_healthy
-    volumes:
-      - office_uploads:/app/data/uploads
-
-  web:
-    image: helm-qa-web:latest
-    pull_policy: never
-    ports:
-      - "46810:80"
-    depends_on:
-      - api
-
-volumes:
-  office_pg_data:
-  office_uploads:
+services: {}

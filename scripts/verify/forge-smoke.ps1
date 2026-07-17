@@ -1,7 +1,7 @@
 #requires -Version 7.0
 <#
 .SYNOPSIS
-  Forge module API smoke tests — auth, role gates, banks CRUD.
+  Forge module API smoke tests — auth, role gates, banks CRUD, catalog, build submit.
 .PARAMETER ApiBase
   API origin (default http://localhost:4000)
 #>
@@ -45,7 +45,8 @@ function ApiPut([string]$Token, [string]$Path, [object]$Body) {
 Write-Host "Forge smoke — API $ApiBase"
 
 $assistantToken = Login "assistant@local.dev" "ChangeMe!Asst1"
-$pmToken = Login "pm@local.dev" "ForgePm1!"
+$pmEmail = if ($env:SEED_FORGE_PM_EMAIL) { $env:SEED_FORGE_PM_EMAIL } else { "a.almesbahi@masarat.ly" }
+$pmToken = Login $pmEmail "ForgePm1!"
 $adminToken = Login "forge-admin@local.dev" "ForgeAdmin1!"
 
 # Negative: assistant denied dashboard
@@ -57,7 +58,7 @@ Write-Host "OK assistant dashboard -> 403"
 $r = ApiGet $pmToken "/api/forge/dashboard"
 if ($r.StatusCode -ne 200) { throw "PM dashboard failed: $($r.StatusCode)" }
 $dash = $r.Content | ConvertFrom-Json
-if ($dash.moduleStatus -notin @("bootstrap", "loop5")) { throw "Unexpected moduleStatus: $($dash.moduleStatus)" }
+if ($dash.moduleStatus -notin @("bootstrap", "loop5", "loop10")) { throw "Unexpected moduleStatus: $($dash.moduleStatus)" }
 Write-Host "OK pm dashboard -> 200 (moduleStatus=$($dash.moduleStatus))"
 
 # PM denied banks admin
@@ -88,9 +89,40 @@ $r = ApiPut $adminToken "/api/forge/banks/$($created.id)" @{ isActive = $false }
 if ($r.StatusCode -ne 200) { throw "Update bank failed: $($r.StatusCode)" }
 Write-Host "OK update bank -> inactive"
 
-# Build request still 501 for PM
-$r = ApiPost $pmToken "/api/forge/build-requests" @{ note = "smoke" }
-if ($r.StatusCode -ne 501) { throw "Expected 501 build submit, got $($r.StatusCode)" }
-Write-Host "OK build submit stub -> 501"
+# PM catalog (seeded gateway tester when present)
+$r = ApiGet $pmToken "/api/forge/catalog"
+if ($r.StatusCode -ne 200) { throw "PM catalog failed: $($r.StatusCode)" }
+$catalog = $r.Content | ConvertFrom-Json
+Write-Host "OK pm catalog -> $($catalog.applications.Count) application(s)"
+
+if ($catalog.applications.Count -gt 0) {
+  $app = $catalog.applications[0]
+  if ($app.profiles.Count -gt 0) {
+    $profile = $app.profiles[0]
+    $r = ApiPost $pmToken "/api/forge/build-requests" @{
+      applicationId = $app.id
+      buildProfileId = $profile.id
+      gitReferenceType = "branch"
+      gitReference = $app.defaultBranch
+      platforms = @("Android")
+    }
+    if ($r.StatusCode -ne 201) { throw "Build submit failed: $($r.StatusCode) $($r.Content)" }
+    $br = ($r.Content | ConvertFrom-Json).buildRequest
+    Write-Host "OK build submit -> $($br.id) ($($br.overallStatus))"
+
+    $r = ApiGet $pmToken "/api/forge/build-requests/$($br.id)"
+    if ($r.StatusCode -ne 200) { throw "Build detail failed: $($r.StatusCode)" }
+    Write-Host "OK build detail -> 200"
+  } else {
+    Write-Host "SKIP build submit — no profiles in catalog"
+  }
+} else {
+  Write-Host "SKIP build submit — no applications in catalog (run seed)"
+}
+
+# Admin runners list
+$r = ApiGet $adminToken "/api/forge/runners"
+if ($r.StatusCode -ne 200) { throw "Runners list failed: $($r.StatusCode)" }
+Write-Host "OK admin runners list -> 200"
 
 Write-Host "Forge smoke passed."

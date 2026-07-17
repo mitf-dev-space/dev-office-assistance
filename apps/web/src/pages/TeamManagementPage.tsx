@@ -1,10 +1,14 @@
 import { useId, useMemo, useState } from "react";
+import { Table } from "@mantine/core";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { DevTeam, DeveloperSummaryDto, RosterPosition, TeamMembershipDto } from "@office/types";
 import { DEV_TEAMS } from "@office/types";
 import { DEV_TEAM_LABELS, DEV_TEAMS_ORDER } from "../constants/teams";
 import { useApi } from "../useApi";
 import { PageHeader } from "../components/PageHeader";
+import { AppDataTable } from "../components/ui/AppDataTable";
+import { useDebouncedValue } from "../hooks/useDebouncedValue";
+import { buildListQuery } from "../lib/listQuery";
 import {
   TeamAddListSkeleton,
   TeamPanelsSkeleton,
@@ -68,6 +72,7 @@ export function TeamManagementPage() {
   const baseId = useId();
 
   const [rosterSearch, setRosterSearch] = useState("");
+  const rosterQ = useDebouncedValue(rosterSearch);
   const [teamFilter, setTeamFilter] = useState<Record<DevTeam, string>>(() => ({
     backend: "",
     qa: "",
@@ -78,19 +83,24 @@ export function TeamManagementPage() {
   const [addTargetTeam, setAddTargetTeam] = useState<DevTeam>("backend");
   const [addSearch, setAddSearch] = useState("");
 
+  const listUrl = useMemo(
+    () => `/api/team-memberships?${buildListQuery({ page: 1, limit: 500, q: rosterQ })}`,
+    [rosterQ],
+  );
+
   const listQuery = useQuery({
-    queryKey: ["team-memberships"],
+    queryKey: ["team-memberships", listUrl],
     queryFn: async () => {
-      const res = await request("/api/team-memberships");
+      const res = await request(listUrl);
       if (!res.ok) throw new Error("list_failed");
       return (await res.json()) as { memberships: TeamMembershipDto[] };
     },
   });
 
   const developersQuery = useQuery({
-    queryKey: ["developers"],
+    queryKey: ["developers", "team-picker"],
     queryFn: async () => {
-      const res = await request("/api/developers");
+      const res = await request("/api/developers?limit=500");
       if (!res.ok) throw new Error("developers_failed");
       return (await res.json()) as { developers: DeveloperSummaryDto[] };
     },
@@ -198,11 +208,8 @@ export function TeamManagementPage() {
   }, [developers, byTeam, addTargetTeam, addSearch]);
 
   function filteredMembersForTeam(team: DevTeam) {
-    const g = rosterSearch;
     const local = teamFilter[team] ?? "";
-    return byTeam[team].filter(
-      (m) => matchesQuery(m, g) && matchesQuery(m, local),
-    );
+    return byTeam[team].filter((m) => matchesQuery(m, local));
   }
 
   return (
@@ -437,82 +444,86 @@ export function TeamManagementPage() {
                 </p>
               )}
               {members.length > 0 && (
-                <div className="tm-table-scroller">
-                  <table className="tm-mtable">
-                    <thead>
-                      <tr>
-                        <th scope="col" className="tm-mtable__c-avatar" />
-                        <th scope="col">Name</th>
-                        <th scope="col">Role</th>
-                        <th scope="col" className="tm-mtable__c-c-lead">Lead</th>
-                        <th scope="col" className="tm-mtable__c-action">
-                          Action
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {members.map((m) => (
-                        <tr key={m.id}>
-                          <td>
-                            <span className="tm-avatar" aria-hidden>
-                              {initials(m.developer)}
-                            </span>
-                          </td>
-                          <td>
-                            <div className="tm-mtable__name">
-                              {memberLabel(m.developer)}
-                              {orgBadge(m.developer.rosterPosition) && (
-                                <span className="tm-org-badge" title="Department role">
-                                  {" "}
-                                  {orgBadge(m.developer.rosterPosition)}
-                                </span>
-                              )}
-                            </div>
-                          </td>
-                          <td>
-                            <span className="tm-mtable__email muted">
-                              {m.developer.jobTitle?.trim() ||
-                                m.developer.skills?.trim() ||
-                                "—"}
-                            </span>
-                          </td>
-                          <td>
-                            <label className="tm-lead-toggle">
-                              <input
-                                type="checkbox"
-                                checked={m.isTeamLead}
-                                disabled={leadMut.isPending}
-                                onChange={() => {
-                                  leadMut.mutate({ id: m.id, isTeamLead: !m.isTeamLead });
-                                }}
-                              />
-                              <span className="sr-only">Team lead for {DEV_TEAM_LABELS[team]}</span>
-                            </label>
-                          </td>
-                          <td>
-                            <button
-                              type="button"
-                              className="btn-ghost tm-mtable__remove"
-                              disabled={removeMut.isPending}
-                              onClick={() => {
-                                if (
-                                  !window.confirm(
-                                    `Remove ${memberLabel(m.developer)} from ${DEV_TEAM_LABELS[team]}?`,
-                                  )
-                                ) {
-                                  return;
-                                }
-                                removeMut.mutate(m.id);
+                <AppDataTable
+                  embedded
+                  scrollMaxHeight="min(24rem, 55vh)"
+                  aria-label={`${DEV_TEAM_LABELS[team]} roster`}
+                >
+                  <Table.Thead>
+                    <Table.Tr>
+                      <Table.Th w={48} />
+                      <Table.Th>Name</Table.Th>
+                      <Table.Th>Role</Table.Th>
+                      <Table.Th w={64} ta="center">
+                        Lead
+                      </Table.Th>
+                      <Table.Th w={100} ta="right">
+                        Action
+                      </Table.Th>
+                    </Table.Tr>
+                  </Table.Thead>
+                  <Table.Tbody>
+                    {members.map((m) => (
+                      <Table.Tr key={m.id}>
+                        <Table.Td>
+                          <span className="tm-avatar" aria-hidden>
+                            {initials(m.developer)}
+                          </span>
+                        </Table.Td>
+                        <Table.Td>
+                          <div className="tm-mtable__name">
+                            {memberLabel(m.developer)}
+                            {orgBadge(m.developer.rosterPosition) && (
+                              <span className="tm-org-badge" title="Department role">
+                                {" "}
+                                {orgBadge(m.developer.rosterPosition)}
+                              </span>
+                            )}
+                          </div>
+                        </Table.Td>
+                        <Table.Td>
+                          <span className="tm-mtable__email muted">
+                            {m.developer.jobTitle?.trim() ||
+                              m.developer.skills?.trim() ||
+                              "—"}
+                          </span>
+                        </Table.Td>
+                        <Table.Td ta="center">
+                          <label className="tm-lead-toggle">
+                            <input
+                              type="checkbox"
+                              checked={m.isTeamLead}
+                              disabled={leadMut.isPending}
+                              onChange={() => {
+                                leadMut.mutate({ id: m.id, isTeamLead: !m.isTeamLead });
                               }}
-                            >
-                              Remove
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                            />
+                            <span className="sr-only">Team lead for {DEV_TEAM_LABELS[team]}</span>
+                          </label>
+                        </Table.Td>
+                        <Table.Td ta="right">
+                          <button
+                            type="button"
+                            className="btn-ghost tm-mtable__remove"
+                            disabled={removeMut.isPending}
+                            onClick={() => {
+                              if (
+                                !window.confirm(
+                                  `Remove ${memberLabel(m.developer)} from ${DEV_TEAM_LABELS[team]}?`,
+                                )
+                              ) {
+                                return;
+                              }
+                              removeMut.mutate(m.id);
+                            }}
+                          >
+                            Remove
+                          </button>
+                        </Table.Td>
+                      </Table.Tr>
+                    ))}
+                  </Table.Tbody>
+                </AppDataTable>
               )}
             </section>
             );

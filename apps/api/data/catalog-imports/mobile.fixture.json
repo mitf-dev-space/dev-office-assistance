@@ -1,0 +1,225 @@
+{
+  "source": "spreadsheet",
+  "team": "frontend_mobile",
+  "systemSlug": "mobile-banking",
+  "applicationTypeSlug": "mobile-banking",
+  "componentTypeSlug": "flutter-bank-app",
+  "groups": [
+    {
+      "name": "Banking applications",
+      "systemSlug": "mobile-banking",
+      "applicationTypeSlug": "mobile-banking",
+      "componentTypeSlug": "flutter-bank-app",
+      "rows": [
+        {
+          "name": "daman-360",
+          "url": "http://10.10.20.51/front-end/banking/daman-360",
+          "pipeline": "no",
+          "unitTests": "included in core mobile banking",
+          "mainBranch": "main",
+          "developmentBranch": "develop( will be created and use as dev)",
+          "staticAnalysis": "no",
+          "workDurationNotes": "نصف يوم عمل"
+        },
+        {
+          "name": "Core Mobile Banking",
+          "url": "http://10.10.20.51/front-end/banking/core-mobile-banking",
+          "pipeline": "yes",
+          "unitTests": "40%",
+          "mainBranch": "master",
+          "developmentBranch": "develop",
+          "staticAnalysis": "no",
+          "notes": "سيتم العمل على الUnit Testing في الخدمات الجديد, وسأقوم بإستكمال الخدمات القديمة بالتعاون مع الفريق  في أوقات فراغهم بين المهام"
+        },
+        {
+          "name": "DIB bank",
+          "url": "http://10.10.20.51/front-end/banking/dib-bank",
+          "pipeline": "",
+          "unitTests": "included in core mobile banking",
+          "mainBranch": "master",
+          "developmentBranch": "development",
+          "staticAnalysis": "yes",
+          "notes": "توجد مشكلة في السيرفر من ناحية البطئ, نسبة الانجاز 80٪ وسيتم الانتهاء منها غدا"
+        },
+        {
+          "name": "Masrfi Business",
+          "url": "http://10.10.20.51/front-end/banking/masrfi-business",
+          "pipeline": "no",
+          "unitTests": "included in core mobile banking",
+          "mainBranch": "master",
+          "developmentBranch": "develop",
+          "staticAnalysis": "no",
+          "workDurationNotes": "نصف يوم عمل"
+        },
+        {
+          "name": "Masrfi Plus",
+          "url": "http://10.10.20.51/front-end/banking/masrfi-plus",
+          "pipeline": "no",
+          "unitTests": "included in core mobile banking",
+          "mainBranch": "master",
+          "developmentBranch": "develop",
+          "staticAnalysis": "no",
+          "workDurationNotes": "نصف يوم عمل"
+        },
+        {
+          "name": "Mobimal",
+          "url": "http://10.10.20.51/front-end/banking/mobimal",
+          "pipeline": "no",
+          "unitTests": "included in core mobile banking",
+          "mainBranch": "master",
+          "developmentBranch": "develop",
+          "staticAnalysis": "no",
+          "workDurationNotes": "نصف يوم عمل"
+        },
+        {
+          "name": "Ncb Business",
+          "url": "http://10.10.20.51/front-end/banking/ncb-business",
+          "pipeline": "no",
+          "unitTests": "included in core mobile banking",
+          "mainBranch": "master",
+          "developmentBranch": "develop",
+          "staticAnalysis": "no",
+          "workDurationNotes": "نصف يوم عمل"
+        },
+        {
+          "name": "Sahara Business",
+          "url": "http://10.10.20.51/front-end/banking/sahara-business",
+          "pipeline": "no",
+          "unitTests": "included in core mobile banking",
+          "mainBranch": "master",
+          "developmentBranch": "develop",
+          "staticAnalysis": "no",
+          "workDurationNotes": "نصف يوم عمل"
+        },
+        {
+          "name": "Sahara Mobile",
+          "url": "http://10.10.20.51/front-end/banking/sahara-mobile",
+          "pipeline": "no",
+          "unitTests": "included in core mobile banking",
+          "mainBranch": "master",
+          "developmentBranch": "develop",
+          "staticAnalysis": "no",
+          "workDurationNotes": "نصف يوم عمل"
+        },
+        {
+          "name": "Siraj Business",
+          "url": "http://10.10.20.51/front-end/banking/siraj-business",
+          "pipeline": "no",
+          "unitTests": "included in core mobile banking",
+          "mainBranch": "main",
+          "developmentBranch": "develop",
+          "staticAnalysis": "no",
+          "workDurationNotes": "نصف يوم عمل"
+        },
+        {
+          "name": "Siraj Mobile",
+          "url": "http://10.10.20.51/front-end/banking/siraj-mobile",
+          "pipeline": "no",
+          "unitTests": "included in core mobile banking",
+          "mainBranch": "main",
+          "developmentBranch": "develop",
+          "staticAnalysis": "no",
+          "workDurationNotes": "نصف يوم عمل"
+        },
+        {
+          "name": "Waha Mobile",
+          "url": "http://10.10.20.51/front-end/banking/waha-mobile",
+          "pipeline": "no",
+          "unitTests": "included in core mobile banking",
+          "mainBranch": "main",
+          "developmentBranch": "development",
+          "staticAnalysis": "no",
+          "workDurationNotes": "نصف يوم عمل"
+        },
+        {
+          "name": "Wahda Business",
+          "url": "",
+          "pipeline": "no",
+          "unitTests": "included in core mobile banking",
+          "mainBranch": "-------",
+          "developmentBranch": "-------",
+          "staticAnalysis": "no",
+          "notes": "لم يتم تجهيز المشروع بعد"
+        }
+      ]
+    },
+    {
+      "name": "Payment applications",
+      "systemSlug": "mobile-payment",
+      "applicationTypeSlug": "mobile-payment",
+      "componentTypeSlug": "flutter-payment-app",
+      "rows": [
+        {
+          "name": "Payment core",
+          "url": "http://10.10.20.51/front-end/payment/payment-core",
+          "pipeline": "no",
+          "unitTests": "Starting From scratch",
+          "mainBranch": "master",
+          "developmentBranch": "develop",
+          "staticAnalysis": "no",
+          "notes": "سيتم العمل على الunit testing فور الانتهاء من الBanking"
+        },
+        {
+          "name": "Daman pay",
+          "url": "http://10.10.20.51/front-end/payment/daman-pay",
+          "pipeline": "no",
+          "unitTests": "included in core mobile banking",
+          "mainBranch": "main",
+          "developmentBranch": "develop",
+          "staticAnalysis": "no",
+          "notes": "سيتم العمل فور الانتهاء من حالت unit test واحدة"
+        },
+        {
+          "name": "Musrfy pay",
+          "url": "http://10.10.20.51/front-end/payment/musrfy-pay",
+          "pipeline": "no",
+          "unitTests": "included in core mobile banking",
+          "mainBranch": "master",
+          "developmentBranch": "develop",
+          "staticAnalysis": "no",
+          "workDurationNotes": "نصف يوم عمل"
+        },
+        {
+          "name": "Sahara pay",
+          "url": "http://10.10.20.51/front-end/payment/sahara-pay",
+          "pipeline": "no",
+          "unitTests": "included in core mobile banking",
+          "mainBranch": "main",
+          "developmentBranch": "develop",
+          "staticAnalysis": "no",
+          "workDurationNotes": "نصف يوم عمل"
+        },
+        {
+          "name": "Siraj Payment",
+          "url": "http://10.10.20.51/front-end/payment/siraj-payment",
+          "pipeline": "no",
+          "unitTests": "included in core mobile banking",
+          "mainBranch": "main",
+          "developmentBranch": "develop",
+          "staticAnalysis": "no",
+          "workDurationNotes": "نصف يوم عمل"
+        },
+        {
+          "name": "waha_pay",
+          "url": "",
+          "pipeline": "no",
+          "unitTests": "included in core mobile banking",
+          "mainBranch": "",
+          "developmentBranch": "------",
+          "staticAnalysis": "no",
+          "notes": "لم يجهز المشروع بعد"
+        },
+        {
+          "name": "Yussor pay",
+          "url": "http://10.10.20.51/front-end/payment/yussor-pay",
+          "pipeline": "no",
+          "unitTests": "included in core mobile banking",
+          "mainBranch": "master",
+          "developmentBranch": "develop",
+          "staticAnalysis": "no",
+          "workDurationNotes": "نصف يوم عمل"
+        }
+      ]
+    }
+  ]
+}

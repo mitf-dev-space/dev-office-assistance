@@ -7,6 +7,25 @@
   max-width: 100%;
 }
 
+.theme-switcher__row {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-wrap: nowrap;
+}
+
+.theme-scheme-toggle {
+  border: 1px solid var(--color-border);
+  background: color-mix(in srgb, var(--color-surface) 92%, var(--accent-faint));
+  color: var(--color-ink);
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.theme-scheme-toggle:hover {
+  border-color: var(--color-border-strong);
+  background: var(--accent-faint);
+}
+
 .theme-switcher__swatches {
   padding: 0.2rem;
   border-radius: 999px;

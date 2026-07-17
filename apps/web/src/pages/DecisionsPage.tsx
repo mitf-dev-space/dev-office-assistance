@@ -1,10 +1,13 @@
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { TeamDecisionDto } from "@office/types";
+import type { PageMeta, TeamDecisionDto } from "@office/types";
 import { useApi } from "../useApi";
 import { PageHeader } from "../components/PageHeader";
 import { FormModal } from "../components/modals/FormModal";
+import { ListQueryBar, TablePagination } from "../components/ui/ListQueryBar";
+import { useListQueryState } from "../hooks/useListQueryState";
+import { buildListQuery, pickPageMeta } from "../lib/listQuery";
 
 function DecisionModal({
   opened,
@@ -210,15 +213,24 @@ export function DecisionsPage() {
   const { request } = useApi();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<TeamDecisionDto | null>(null);
+  const { page, setPage, limit, setLimit, searchInput, search, onSearchChange } =
+    useListQueryState(25);
+
+  const listUrl = useMemo(
+    () => `/api/decisions?${buildListQuery({ page, limit, q: search })}`,
+    [page, limit, search],
+  );
 
   const list = useQuery({
-    queryKey: ["decisions"],
+    queryKey: ["decisions", listUrl],
     queryFn: async () => {
-      const res = await request("/api/decisions");
+      const res = await request(listUrl);
       if (!res.ok) throw new Error("load_failed");
-      return (await res.json()) as { decisions: TeamDecisionDto[] };
+      return (await res.json()) as { decisions: TeamDecisionDto[] } & PageMeta;
     },
   });
+
+  const pageMeta = pickPageMeta(list.data);
 
   return (
     <div className="app-page app-page--decisions" id="decisions-top">
@@ -238,6 +250,12 @@ export function DecisionsPage() {
             Log decision
           </button>
         }
+      />
+
+      <ListQueryBar
+        search={searchInput}
+        onSearchChange={onSearchChange}
+        searchPlaceholder="Search title, body, author…"
       />
 
       {list.isLoading && <p className="muted">Loading…</p>}
@@ -318,6 +336,15 @@ export function DecisionsPage() {
           When you need a durable record, log it here and optionally link a triage or planning item.
         </div>
       )}
+
+      <TablePagination
+        page={pageMeta.page}
+        totalPages={pageMeta.totalPages}
+        total={pageMeta.total}
+        limit={pageMeta.limit}
+        onPageChange={setPage}
+        onLimitChange={setLimit}
+      />
 
       <DecisionModal
         opened={open}
