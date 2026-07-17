@@ -27,9 +27,9 @@ export default defineConfig({
       includeAssets: ["pwa-icon.svg", "favicon.svg"],
       strategies: "generateSW",
       manifest: {
-        name: "Cairn",
-        short_name: "Cairn",
-        description: "Triage, planning, and your team in one place.",
+        name: "Helm",
+        short_name: "Helm",
+        description: "Triage, planning, mobile builds, and your team in one place.",
         theme_color: "#0f766e",
         background_color: "#f5f4f2",
         display: "standalone",
@@ -60,7 +60,8 @@ export default defineConfig({
     }),
   ],
   server: {
-    port: 5173,
+    port: Number(envString("WEB_DEV_PORT") ?? "5174"),
+    strictPort: false,
     host: true,
     watch: {
       // File watching in Docker Desktop (Windows/macOS) often needs polling.

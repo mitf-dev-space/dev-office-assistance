@@ -16,8 +16,98 @@ export const TRIAGE_STATUSES = [
 ] as const;
 export type TriageStatus = (typeof TRIAGE_STATUSES)[number];
 
-export const SOURCE_TYPES = ["outlook", "manual", "microsoft_todo"] as const;
+export const SOURCE_TYPES = ["outlook", "manual", "microsoft_todo", "clickup"] as const;
 export type SourceType = (typeof SOURCE_TYPES)[number];
+
+export const EXTERNAL_PROVIDERS = ["microsoft_todo", "clickup"] as const;
+export type ExternalProvider = (typeof EXTERNAL_PROVIDERS)[number];
+
+export const EXTERNAL_SYNC_STATES = ["idle", "syncing", "error", "stale"] as const;
+export type ExternalSyncState = (typeof EXTERNAL_SYNC_STATES)[number];
+
+export type ClickUpPersonSummaryDto = {
+  id: string;
+  username: string | null;
+  email: string | null;
+  profilePicture: string | null;
+};
+
+export type ClickUpCommentSummaryDto = {
+  id: string;
+  text: string;
+  author: string | null;
+  authorId: string | null;
+  date: string | null;
+};
+
+export type ClickUpCustomFieldSummaryDto = {
+  id: string;
+  name: string;
+  type: string | null;
+  valueText: string | null;
+};
+
+/** Structured ClickUp payload exposed from ExternalWorkItem.rawMetadata._helm */
+export type ClickUpEnrichmentDto = {
+  assignees: ClickUpPersonSummaryDto[];
+  watchers: ClickUpPersonSummaryDto[];
+  creator: ClickUpPersonSummaryDto | null;
+  tags: string[];
+  customFields: ClickUpCustomFieldSummaryDto[];
+  checklists: Array<{
+    id: string;
+    name: string;
+    resolved: number;
+    unresolved: number;
+  }>;
+  comments: ClickUpCommentSummaryDto[];
+  timeEstimateMs: number | null;
+  timeSpentMs: number | null;
+  points: number | null;
+  startDate: string | null;
+  dateCreated: string | null;
+  dateDone: string | null;
+  dateClosed: string | null;
+  attachmentCount: number;
+  listName: string | null;
+  folderName: string | null;
+  spaceName: string | null;
+  commentsFetchedAt: string | null;
+};
+
+export type ExternalWorkItemDto = {
+  id: string;
+  provider: ExternalProvider;
+  connectionKey: string;
+  workspaceId: string | null;
+  spaceId: string | null;
+  folderId: string | null;
+  listId: string | null;
+  externalId: string;
+  externalParentId: string | null;
+  externalUrl: string | null;
+  title: string;
+  externalStatus: string | null;
+  externalPriority: string | null;
+  externalUpdatedAt: string | null;
+  lastSyncedAt: string | null;
+  syncState: ExternalSyncState;
+  triageItemId: string | null;
+  clickUp?: ClickUpEnrichmentDto;
+};
+
+export type ClickUpConnectionDto = {
+  id: string;
+  name: string;
+  workspaceId: string | null;
+  workspaceName: string | null;
+  hasToken: boolean;
+  tokenHint: string | null;
+  autoSyncEnabled: boolean;
+  lastSyncAt: string | null;
+  lastSyncError: string | null;
+  webhookConfigured: boolean;
+};
 
 export type TriageAttachmentMeta = {
   id: string;
@@ -39,6 +129,11 @@ export type TriageItemDto = {
   assigneeDeveloperId: string;
   /** Set when the API joins the assignee (list/detail). */
   assigneeName?: string;
+  /**
+   * ClickUp task assignees (may be multiple). Helm primary owner remains
+   * assigneeDeveloperId / assigneeName.
+   */
+  clickUpAssignees?: ClickUpPersonSummaryDto[];
   sourceType: SourceType;
   graphMessageId: string | null;
   graphWebLink: string | null;
@@ -60,6 +155,8 @@ export type TriageItemDto = {
   attachmentCount?: number;
   /** Present on GET /api/triage-items/:id */
   attachments?: TriageAttachmentMeta[];
+  /** Linked external work items (To Do / ClickUp) when included by API */
+  externalWorkItems?: ExternalWorkItemDto[];
 };
 
 export type CreateTriageItemInput = {
@@ -309,3 +406,7 @@ export type MeProfileDto = {
   notifyEmailTriage: boolean;
   notifyEmailDigest: boolean;
 };
+
+export * from "./forge.js";
+export * from "./pagination.js";
+export * from "./catalog/index.js";

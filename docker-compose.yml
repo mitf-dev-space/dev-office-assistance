@@ -30,9 +30,13 @@ services:
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:5173,http://127.0.0.1:5173,http://localhost:8080,http://127.0.0.1:8080}
       PORT: "4000"
       NODE_ENV: production
+      ALLOW_LOCALHOST_CORS_IN_PRODUCTION: "true"
       RATE_LIMIT_MAX: ${RATE_LIMIT_MAX:-200}
       M365_TENANT_ID: ${M365_TENANT_ID:-}
       M365_CLIENT_ID: ${M365_CLIENT_ID:-}
+      FORGE_ARTIFACTS_ROOT: ${FORGE_ARTIFACTS_ROOT:-data/forge-artifacts}
+      FORGE_ALLOW_IOS_SIMULATION: ${FORGE_ALLOW_IOS_SIMULATION:-false}
+      FORGE_RUNNER_TOKEN_PEPPER: ${FORGE_RUNNER_TOKEN_PEPPER:-}
     ports:
       - "4000:4000"
     depends_on:
@@ -53,6 +57,17 @@ services:
       - "8080:80"
     depends_on:
       - api
+
+  mailpit:
+    profiles: ["forge-dev"]
+    image: axllent/mailpit:latest
+    ports:
+      - "8025:8025"
+      - "1025:1025"
+    environment:
+      MP_MAX_MESSAGES: 5000
+      MP_SMTP_AUTH_ACCEPT_ANY: 1
+      MP_SMTP_AUTH_ALLOW_INSECURE: 1
 
 volumes:
   office_pg_data:

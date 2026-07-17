@@ -219,6 +219,148 @@ function TriageDetailInner({
             </a>
           </p>
         )}
+        {it.sourceType === "clickup" && it.graphWebLink && (
+          <p style={{ marginTop: 0, marginBottom: "0.35rem" }}>
+            <a href={it.graphWebLink} target="_blank" rel="noreferrer" className="link-out">
+              Open in ClickUp
+            </a>
+          </p>
+        )}
+        {(it.externalWorkItems?.length ?? 0) > 0 && (
+          <div style={{ marginBottom: "1rem" }}>
+            <p style={{ margin: "0 0 0.35rem", fontWeight: 600 }}>External tasks</p>
+            <ul style={{ margin: 0, paddingLeft: "1.1rem" }}>
+              {it.externalWorkItems!.map((ew) => (
+                <li key={ew.id}>
+                  <span className="muted">
+                    {ew.provider === "clickup" ? "ClickUp" : "To Do"}
+                  </span>
+                  {": "}
+                  {ew.externalUrl ? (
+                    <a href={ew.externalUrl} target="_blank" rel="noreferrer" className="link-out">
+                      {ew.title}
+                    </a>
+                  ) : (
+                    ew.title
+                  )}
+                  {ew.externalStatus ? ` · ${ew.externalStatus}` : ""}
+                </li>
+              ))}
+            </ul>
+            {it.sourceType === "clickup" && (
+              <div className="form-actions" style={{ marginTop: "0.5rem" }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    void request(`/api/triage-items/${it.id}/clickup/sync`, {
+                      method: "POST",
+                    }).then((res) => {
+                      if (res.ok) void qc.invalidateQueries({ queryKey: ["triage-item", id] });
+                    });
+                  }}
+                >
+                  Refresh from ClickUp
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+        {(() => {
+          const cu = it.externalWorkItems?.find((e) => e.provider === "clickup")?.clickUp;
+          if (!cu) return null;
+          return (
+            <div className="card" style={{ marginBottom: "1rem", padding: "1rem" }}>
+              <p style={{ margin: "0 0 0.75rem", fontWeight: 600 }}>ClickUp details</p>
+              {(cu.listName || cu.folderName) && (
+                <p className="muted" style={{ marginTop: 0 }}>
+                  {[cu.folderName, cu.listName].filter(Boolean).join(" / ")}
+                </p>
+              )}
+              {cu.assignees.length > 0 && (
+                <div style={{ marginBottom: "0.75rem" }}>
+                  <div className="muted" style={{ fontSize: "0.85rem", marginBottom: 4 }}>
+                    Assignees ({cu.assignees.length})
+                  </div>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                    {cu.assignees.map((a) => (
+                      <span key={a.id} className="pill pill--status" data-status="inbox">
+                        {a.username || a.email || a.id}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {cu.watchers.length > 0 && (
+                <p className="muted" style={{ fontSize: "0.9rem" }}>
+                  Watchers:{" "}
+                  {cu.watchers
+                    .map((w) => w.username || w.email || w.id)
+                    .slice(0, 8)
+                    .join(", ")}
+                  {cu.watchers.length > 8 ? ` +${cu.watchers.length - 8}` : ""}
+                </p>
+              )}
+              {cu.tags.length > 0 && (
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: "0.75rem" }}>
+                  {cu.tags.map((t) => (
+                    <span key={t} className="pill pill--cat" data-category="other">
+                      {t}
+                    </span>
+                  ))}
+                </div>
+              )}
+              {cu.customFields.length > 0 && (
+                <div style={{ marginBottom: "0.75rem" }}>
+                  <div className="muted" style={{ fontSize: "0.85rem", marginBottom: 4 }}>
+                    Custom fields
+                  </div>
+                  <ul style={{ margin: 0, paddingLeft: "1.1rem" }}>
+                    {cu.customFields.slice(0, 12).map((f) => (
+                      <li key={f.id}>
+                        <span className="muted">{f.name}:</span> {f.valueText}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {(cu.timeEstimateMs || cu.timeSpentMs || cu.points != null) && (
+                <p className="muted" style={{ fontSize: "0.9rem" }}>
+                  {cu.points != null ? `Points ${cu.points}` : null}
+                  {cu.timeEstimateMs
+                    ? `${cu.points != null ? " · " : ""}Estimate ${(cu.timeEstimateMs / 3_600_000).toFixed(1)}h`
+                    : null}
+                  {cu.timeSpentMs
+                    ? ` · Spent ${(cu.timeSpentMs / 3_600_000).toFixed(1)}h`
+                    : null}
+                </p>
+              )}
+              {cu.comments.length > 0 && (
+                <div>
+                  <div className="muted" style={{ fontSize: "0.85rem", marginBottom: 6 }}>
+                    Activity / comments ({cu.comments.length}
+                    {cu.commentsFetchedAt
+                      ? ` · fetched ${cu.commentsFetchedAt.slice(0, 16).replace("T", " ")}`
+                      : ""}
+                    )
+                  </div>
+                  <ul style={{ margin: 0, paddingLeft: "1.1rem", maxHeight: 280, overflow: "auto" }}>
+                    {cu.comments.map((c) => (
+                      <li key={c.id} style={{ marginBottom: 8 }}>
+                        <div>
+                          <strong>{c.author ?? "Unknown"}</strong>
+                          {c.date ? (
+                            <span className="muted"> · {c.date.slice(0, 16).replace("T", " ")}</span>
+                          ) : null}
+                        </div>
+                        <div style={{ whiteSpace: "pre-wrap" }}>{c.text || "(empty)"}</div>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          );
+        })()}
         {it.sourceType === "microsoft_todo" && lastTodo && (
           <p className="muted" style={{ marginTop: 0, fontSize: "0.9rem" }}>
             Last pulled from To Do: {lastTodo}
@@ -306,7 +448,7 @@ function TriageDetailInner({
             />
           </div>
           <div className="field">
-            <label htmlFor="as">Assignee</label>
+            <label htmlFor="as">Helm primary assignee</label>
             <select
               id="as"
               value={assigneeDeveloperId}
@@ -318,6 +460,12 @@ function TriageDetailInner({
                 </option>
               ))}
             </select>
+            {(it.clickUpAssignees?.length ?? 0) > 1 && (
+              <p className="muted" style={{ margin: "0.35rem 0 0", fontSize: "0.85rem" }}>
+                ClickUp has {it.clickUpAssignees!.length} assignees — Helm keeps one primary owner
+                for triage ownership; all names are shown above under ClickUp details.
+              </p>
+            )}
           </div>
           <div className="field">
             <label htmlFor="program">Program / client (optional)</label>

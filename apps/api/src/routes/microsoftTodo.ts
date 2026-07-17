@@ -11,6 +11,11 @@ import {
   stripTaskBody,
   type GraphTask,
 } from "../todoTriageService.js";
+import { upsertMicrosoftTodoExternal } from "../externalWork/upsert.js";
+import {
+  ensureTodoSyncSettings,
+  syncMicrosoftTodoLists,
+} from "../externalWork/todoSyncService.js";
 
 const tasksQuery = z.object({
   top: z.coerce.number().int().min(1).max(200).default(100),
@@ -231,6 +236,7 @@ export async function registerMicrosoftTodoRoutes(app: FastifyInstance) {
       const existing = await prisma.triageItem.findFirst({
         where: { graphTodoListId: listId, graphTodoTaskId: t.id },
       });
+      let triageItemId: string;
       if (existing) {
         await prisma.triageItem.update({
           where: { id: existing.id },
@@ -245,8 +251,9 @@ export async function registerMicrosoftTodoRoutes(app: FastifyInstance) {
             lastTodoSyncedAt: now,
           },
         });
+        triageItemId = existing.id;
       } else {
-        await prisma.triageItem.create({
+        const created = await prisma.triageItem.create({
           data: {
             title: title.slice(0, 500),
             description: desc,
@@ -266,15 +273,100 @@ export async function registerMicrosoftTodoRoutes(app: FastifyInstance) {
             createdById: me.id,
           },
         });
+        triageItemId = created.id;
       }
+      await upsertMicrosoftTodoExternal(prisma, {
+        listId,
+        taskId: t.id,
+        title: title.slice(0, 500),
+        externalUrl: t.webUrl ?? null,
+        externalStatus: t.status ?? null,
+        triageItemId,
+      });
       upserted += 1;
+    }
+
+    const settings = await ensureTodoSyncSettings(prisma);
+    const connected = Array.isArray(settings.connectedListIds)
+      ? (settings.connectedListIds as string[])
+      : [];
+    if (!connected.includes(listId)) {
+      await prisma.microsoftTodoSyncSettings.update({
+        where: { id: "default" },
+        data: { connectedListIds: [...connected, listId] },
+      });
     }
 
     return {
       upserted,
       listId,
       message:
-        "Tasks merged into triage by list and task id. Re-run import to pick up To Do changes.",
+        "Tasks merged into triage and ExternalWorkItem. Re-run import or scheduled sync to pick up To Do changes.",
     };
+  });
+
+  app.get("/api/todo/sync-settings", async (request, reply) => {
+    const me = await requireDbUser(request.authUser, reply);
+    if (!me) return;
+    const settings = await ensureTodoSyncSettings(prisma);
+    return {
+      autoSyncEnabled: settings.autoSyncEnabled,
+      connectedListIds: settings.connectedListIds,
+      lastSyncAt: settings.lastSyncAt?.toISOString() ?? null,
+      lastSyncError: settings.lastSyncError,
+    };
+  });
+
+  app.put("/api/todo/sync-settings", async (request, reply) => {
+    const me = await requireDbUser(request.authUser, reply);
+    if (!me) return;
+    if (me.role !== "lead") {
+      return reply.status(403).send({ error: "forbidden" });
+    }
+    const body = z
+      .object({
+        autoSyncEnabled: z.boolean().optional(),
+        connectedListIds: z.array(z.string()).optional(),
+      })
+      .safeParse(request.body);
+    if (!body.success) {
+      return reply.status(400).send({ error: "validation", details: body.error.flatten() });
+    }
+    await ensureTodoSyncSettings(prisma);
+    const settings = await prisma.microsoftTodoSyncSettings.update({
+      where: { id: "default" },
+      data: {
+        autoSyncEnabled: body.data.autoSyncEnabled,
+        connectedListIds: body.data.connectedListIds,
+      },
+    });
+    return {
+      autoSyncEnabled: settings.autoSyncEnabled,
+      connectedListIds: settings.connectedListIds,
+      lastSyncAt: settings.lastSyncAt?.toISOString() ?? null,
+      lastSyncError: settings.lastSyncError,
+    };
+  });
+
+  app.post("/api/todo/sync", async (request, reply) => {
+    const me = await requireDbUser(request.authUser, reply);
+    if (!me) return;
+    const graphToken = readGraphToken(request);
+    if (!graphToken) {
+      return reply.status(400).send({
+        error: "graph_token_required",
+        message: "Sign in on the To Do page to sync lists.",
+      });
+    }
+    try {
+      const result = await syncMicrosoftTodoLists(prisma, {
+        graphAccessToken: graphToken,
+        createdById: me.id,
+      });
+      return result;
+    } catch (e) {
+      request.log.error({ err: e }, "todo_sync_error");
+      return reply.status(502).send({ error: "sync_failed" });
+    }
   });
 }

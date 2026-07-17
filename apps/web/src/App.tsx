@@ -4,11 +4,13 @@ import { useAuth } from "./auth/AuthContext";
 import { AppLayout } from "./components/AppLayout";
 import { LoginPage } from "./pages/LoginPage";
 import { DashboardPage } from "./pages/DashboardPage";
+import { TriagePage } from "./pages/TriagePage";
 import { TriageDetailPage } from "./pages/TriageDetailPage";
 import { TriageCreatePage } from "./pages/TriageCreatePage";
 import { AppsIndexPage } from "./pages/AppsIndexPage";
 import { OutlookPage } from "./pages/OutlookPage";
 import { TodoPage } from "./pages/TodoPage";
+import { ClickUpPage } from "./pages/ClickUpPage";
 import { AppRegistrationsPage } from "./pages/AppRegistrationsPage";
 import { ExpensesPage } from "./pages/ExpensesPage";
 import { ExpenseEditPage } from "./pages/ExpenseEditPage";
@@ -21,6 +23,32 @@ import { ProfilePage } from "./pages/ProfilePage";
 import { PriorityPage } from "./pages/PriorityPage";
 import { StandupPage } from "./pages/StandupPage";
 import { DecisionsPage } from "./pages/DecisionsPage";
+import { ForgeRouteGuard } from "./pages/forge/ForgeRouteGuard";
+import { ForgeDashboardPage } from "./pages/forge/ForgeDashboardPage";
+import { ForgeBuildsPage } from "./pages/forge/ForgeBuildsPage";
+import { ForgeRequestBuildPage } from "./pages/forge/ForgeRequestBuildPage";
+import { ForgeBuildDetailPage } from "./pages/forge/ForgeBuildDetailPage";
+import { ForgeAdminPage } from "./pages/forge/ForgeAdminPage";
+import { isForgeOnlyUser } from "./lib/forge/roles";
+import { CatalogOverviewPage } from "./pages/catalog/CatalogOverviewPage";
+import { CatalogRepositoriesPage } from "./pages/catalog/CatalogRepositoriesPage";
+import { CatalogRepositoryDetailPage } from "./pages/catalog/CatalogRepositoryDetailPage";
+import { CatalogPoliciesPage } from "./pages/catalog/CatalogPoliciesPage";
+import {
+  CatalogImportsPage,
+  CatalogIntegrationsPage,
+  CatalogGapsPage,
+  CatalogSyncPage,
+  CatalogRegisterRepositoryPage,
+} from "./pages/catalog/CatalogImportsPage";
+
+function DashboardRoute() {
+  const { user } = useAuth();
+  if (user && isForgeOnlyUser(user.role)) {
+    return <Navigate to="/forge" replace />;
+  }
+  return <DashboardPage />;
+}
 
 export default function App() {
   const { user, ready, logout } = useAuth();
@@ -48,8 +76,9 @@ export default function App() {
     <div className="app-shell app-shell--with-sidebar">
       <AppLayout user={user} onLogout={logout}>
         <Routes>
-          <Route path="/" element={<DashboardPage />} />
+          <Route path="/" element={<DashboardRoute />} />
           <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/triage" element={<TriagePage />} />
           <Route path="/triage/new" element={<TriageCreatePage />} />
           <Route path="/triage/:id" element={<TriageDetailPage />} />
           <Route path="/expenses" element={<ExpensesPage />} />
@@ -67,7 +96,26 @@ export default function App() {
           <Route path="/apps/registration" element={<AppRegistrationsPage />} />
           <Route path="/apps/outlook" element={<OutlookPage />} />
           <Route path="/apps/todo" element={<TodoPage />} />
+          <Route path="/apps/clickup" element={<ClickUpPage />} />
           <Route path="/email" element={<Navigate to="/apps/outlook" replace />} />
+          <Route element={<ForgeRouteGuard />}>
+            <Route path="/forge" element={<ForgeDashboardPage />} />
+            <Route path="/forge/builds" element={<ForgeBuildsPage />} />
+            <Route path="/forge/builds/new" element={<ForgeRequestBuildPage />} />
+            <Route path="/forge/builds/:id" element={<ForgeBuildDetailPage />} />
+          </Route>
+          <Route element={<ForgeRouteGuard requireAdmin />}>
+            <Route path="/forge/admin" element={<ForgeAdminPage />} />
+          </Route>
+          <Route path="/catalog" element={<CatalogOverviewPage />} />
+          <Route path="/catalog/repositories" element={<CatalogRepositoriesPage />} />
+          <Route path="/catalog/repositories/new" element={<CatalogRegisterRepositoryPage />} />
+          <Route path="/catalog/repositories/:id" element={<CatalogRepositoryDetailPage />} />
+          <Route path="/catalog/imports" element={<CatalogImportsPage />} />
+          <Route path="/catalog/integrations" element={<CatalogIntegrationsPage />} />
+          <Route path="/catalog/gaps" element={<CatalogGapsPage />} />
+          <Route path="/catalog/policies" element={<CatalogPoliciesPage />} />
+          <Route path="/catalog/sync" element={<CatalogSyncPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </AppLayout>

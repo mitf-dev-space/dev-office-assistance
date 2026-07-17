@@ -1,5 +1,7 @@
 # Environment reference
 
+> **Canonical docs:** [`configuration.md`](./configuration.md) and [`.env.example`](../.env.example) / [`.env.production.example`](../.env.production.example). This file remains as a short inventory.
+
 This project reads environment variables from the repository root `.env` for API and compose flows, and from `apps/web/.env` for Vite/web build values.
 
 ## Core API variables
@@ -21,7 +23,19 @@ This project reads environment variables from the repository root `.env` for API
 |----------|----------|---------|-------|
 | `SEED_LEAD_PASSWORD` | No | `lead` | Seeded password for `lead@local.dev` |
 | `SEED_ASSISTANT_PASSWORD` | No | `ChangeMe!Asst1` | Seeded password for `assistant@local.dev` |
+| `SEED_FORGE_ADMIN_PASSWORD` | No | `ForgeAdmin1!` | Seeded password for `forge-admin@local.dev` |
+| `SEED_FORGE_PM_PASSWORD` | No | `ForgePm1!` | Seeded password for `pm@local.dev` |
 | `SEED_DEMO_DATA` | No | false | If truthy, seed also upserts demo triage/planning/standup/decision data |
+
+## Forge module variables
+
+| Variable | Required | Default | Notes |
+|----------|----------|---------|-------|
+| `FORGE_ARTIFACTS_ROOT` | No | `data/forge-artifacts` | Local artifact storage root |
+| `FORGE_WORKSPACES_ROOT` | No | `data/forge-workspaces` | Git clone workspaces for forge-worker |
+| `FORGE_MAX_ARTIFACT_BYTES` | No | `209715200` (200 MB) | Multipart upload limit for APK/IPA artifacts |
+| `FORGE_RUNNER_TOKEN_PEPPER` | No | — | Reserved for future HMAC pepper (bcrypt used today) |
+| `FORGE_ALLOW_IOS_SIMULATION` | No | `false` | Dev/test only — never enable in production |
 
 ## Optional integration variables
 
@@ -44,13 +58,45 @@ This project reads environment variables from the repository root `.env` for API
 | `SMTP_FROM` | Optional | empty | Sender address/display, required with `SMTP_HOST` |
 | `Smtp__Host` etc. | Optional | - | ASP.NET-style aliases are coalesced into `SMTP_*` |
 
-### ClickUp / cron links
+### ClickUp / Microsoft To Do sync / cron links
 
 | Variable | Required | Default | Notes |
 |----------|----------|---------|-------|
 | `APP_PUBLIC_URL` | No | empty | Used for deep links in notification emails |
 | `CRON_SECRET` | No | empty | Protects `/api/cron/weekly-digest` endpoint |
-| `CLICKUP_TLS_INSECURE` | No | empty | Dev-only escape hatch for ClickUp TLS issues |
+| `CLICKUP_API_BASE_URL` | No | `https://api.clickup.com/api/v2` | ClickUp API root |
+| `CLICKUP_TOKEN_ENCRYPTION_KEY` | Optional | empty | Falls back to `CATALOG_TOKEN_ENCRYPTION_KEY` |
+| `CLICKUP_ACCESS_TOKEN` | Optional | empty | Local seed only; never committed; rotate after use |
+| `CLICKUP_SYNC_ENABLED` | No | `true` | Separate ClickUp scheduler (enqueue `clickup.sync_*`) |
+| `CLICKUP_SYNC_INTERVAL_MINUTES` | No | `15` | ClickUp cron interval |
+| `CLICKUP_MAX_PAGES_PER_SYNC` | No | `20` | Max task pages per list sync |
+| `CLICKUP_SYNC_COMMENTS` | No | `true` | Fetch task comments into `_helm` during list sync (extra API call per task) |
+| `CLICKUP_WEBHOOK_BASE_URL` | Optional | empty | Public HTTPS base for webhook registration |
+| `CLICKUP_TLS_INSECURE` | No | `false` | Reserved; prefer proper CA trust |
+| `MICROSOFT_TODO_SYNC_ENABLED` | No | `true` | Separate To Do scheduler |
+| `MICROSOFT_TODO_SYNC_INTERVAL_MINUTES` | No | `30` | To Do cron interval (pull needs Graph token from UI sync) |
+
+### Engineering Catalog
+
+| Variable | Required | Default | Notes |
+|----------|----------|---------|-------|
+| `GITLAB_CONNECTION_NAME` | No | `gitlab-internal` | Seed slug for self-hosted GitLab connection |
+| `GITLAB_BASE_URL` | No | `http://10.10.20.51` | GitLab web base (not hardcoded in app logic) |
+| `GITLAB_API_URL` | No | derived from `GITLAB_BASE_URL` | GitLab API v4 root |
+| `GITLAB_ACCESS_TOKEN` | Optional | empty | Encrypted into DB when `CATALOG_TOKEN_ENCRYPTION_KEY` is set |
+| `GITLAB_WEBHOOK_SECRET` | Optional | empty | GitLab webhook verification |
+| `GITLAB_TLS_CA_FILE` | Optional | empty | Internal CA for GitLab TLS |
+| `GITHUB_CONNECTION_NAME` | No | `github-cloud` | Seed slug for GitHub.com connection |
+| `GITHUB_API_URL` | No | `https://api.github.com` | GitHub REST API |
+| `GITHUB_BASE_URL` | No | `https://github.com` | GitHub web base |
+| `GITHUB_ACCESS_TOKEN` | Optional | empty | PAT for private repos / rate limits |
+| `GITHUB_WEBHOOK_SECRET` | Optional | empty | GitHub webhook HMAC secret |
+| `CATALOG_SYNC_ENABLED` | No | `true` | Background sync worker |
+| `CATALOG_SYNC_INTERVAL_MINUTES` | No | `30` | Worker poll interval cap |
+| `CATALOG_REQUEST_TIMEOUT_MS` | No | `10000` | Provider HTTP timeout |
+| `CATALOG_TOKEN_ENCRYPTION_KEY` | Optional | empty | Required to store connection tokens in DB |
+
+Inventory fixtures: `apps/api/data/catalog-imports/*.fixture.json` (or upload `.xlsx` when added).
 
 ## Web variables (`apps/web/.env`)
 

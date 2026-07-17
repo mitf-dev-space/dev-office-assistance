@@ -5,8 +5,8 @@ import { z } from "zod";
 import type { DevTeam, Prisma, RosterPosition } from "@prisma/client";
 
 import { prisma } from "../db.js";
-
 import { requireDbUser } from "../userService.js";
+import { parseListQuery, withPageMeta } from "../lib/listQuery.js";
 
 
 
@@ -182,7 +182,9 @@ export async function registerTeamMembershipRoutes(app: FastifyInstance) {
 
     const q = request.query as Record<string, string | undefined>;
 
-    const where: Prisma.TeamMembershipWhereInput = {};
+    const pq = parseListQuery(q);
+
+    const and: Prisma.TeamMembershipWhereInput[] = [];
 
     if (q.team) {
 
@@ -194,28 +196,73 @@ export async function registerTeamMembershipRoutes(app: FastifyInstance) {
 
       }
 
-      where.team = t.data;
+      and.push({ team: t.data });
 
     }
 
+    if (pq.q) {
+
+      and.push({
+
+        developer: {
+
+          OR: [
+
+            { displayName: { contains: pq.q, mode: "insensitive" } },
+
+            { skills: { contains: pq.q, mode: "insensitive" } },
+
+            { jobTitle: { contains: pq.q, mode: "insensitive" } },
+
+          ],
+
+        },
+
+      });
+
+    }
+
+    const where: Prisma.TeamMembershipWhereInput = and.length ? { AND: and } : {};
 
 
-    const rows = await prisma.teamMembership.findMany({
-      where,
-      include: {
-        developer: { select: developerSummarySelect },
-      },
-      orderBy: { team: "asc" },
-    });
 
-    const sorted = [...rows].sort((a, b) => {
-      const byTeam = a.team.localeCompare(b.team);
-      if (byTeam !== 0) return byTeam;
-      if (a.isTeamLead !== b.isTeamLead) return a.isTeamLead ? -1 : 1;
-      return a.developer.displayName.localeCompare(b.developer.displayName, undefined, { sensitivity: "base" });
-    });
+    const [rows, total] = await Promise.all([
 
-    return { memberships: sorted.map((r) => toDto(r)) };
+      prisma.teamMembership.findMany({
+
+        where,
+
+        skip: pq.skip,
+
+        take: pq.limit,
+
+        include: {
+
+          developer: { select: developerSummarySelect },
+
+        },
+
+        orderBy: [{ team: "asc" }, { isTeamLead: "desc" }, { developer: { displayName: "asc" } }],
+
+      }),
+
+      prisma.teamMembership.count({ where }),
+
+    ]);
+
+
+
+    return withPageMeta(
+
+      { memberships: rows.map((r) => toDto(r)) },
+
+      pq.page,
+
+      pq.limit,
+
+      total,
+
+    );
 
   });
 

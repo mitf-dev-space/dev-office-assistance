@@ -122,21 +122,120 @@ Most endpoints require a local JWT bearer token from `/api/auth/login`, unless e
 
 ### Microsoft To Do sync
 
+Requires `X-Graph-Access-Token`. Imports dual-write `TriageItem` Graph columns and `ExternalWorkItem` (`provider=microsoft_todo`).
+
 - `GET /api/todo/lists`
 - `GET /api/todo/lists/:listId/tasks`
 - `POST /api/todo/import`
+- `GET /api/todo/sync-settings`
+- `PUT /api/todo/sync-settings` (lead; `autoSyncEnabled`, `connectedListIds`)
+- `POST /api/todo/sync` (pull connected lists with Graph token)
 
-### ClickUp settings and sync
+### ClickUp (Apps → ClickUp)
+
+Token stored encrypted; API never returns the raw PAT. Tasks land in shared `ExternalWorkItem` (`provider=clickup`) linked to Triage. Separate cron from To Do (`clickup.sync_*` vs `microsoft_todo.sync_lists`).
 
 - `GET /api/integrations/clickup`
-- `PUT /api/integrations/clickup` (`apiToken` changes require lead)
-- `GET /api/clickup/teams`
-- `GET /api/clickup/spaces`
-- `GET /api/clickup/flattened-lists`
-- `GET /api/clickup/lists/:listId/tasks`
-- `POST /api/clickup/import`
+- `PUT /api/integrations/clickup` (lead; `apiToken` / `autoSyncEnabled`)
+- `POST /api/integrations/clickup/test` (lead)
+- `GET /api/integrations/clickup/teams`
+- `GET /api/integrations/clickup/spaces`
+- `GET /api/integrations/clickup/flattened-lists` (owned spaces + Shared with me across workspaces)
+- `GET|PUT /api/integrations/clickup/list-mappings`
+- `POST /api/integrations/clickup/list-mappings/enable-all-discovered`
+- `POST /api/integrations/clickup/clear-imported`
+- `GET|PUT /api/integrations/clickup/status-mappings`
+- `POST /api/integrations/clickup/import/preview`
+- `POST /api/integrations/clickup/import`
+- `POST /api/integrations/clickup/sync`
+- `POST /api/integrations/clickup/webhooks/register` (lead; needs `CLICKUP_WEBHOOK_BASE_URL`)
+- `POST /api/integrations/clickup/webhook` (public; signature verified when secret set)
+- Triage helpers: `POST /api/triage-items/:id/clickup/{create,sync,push,comment}`, `DELETE .../clickup/link`
 
 ## Scheduled jobs
 
 - `POST /api/cron/weekly-digest` (requires `CRON_SECRET` when configured)
+
+## Forge module
+
+Requires JWT. Roles: `forge_pm` and `forge_admin` (and `lead`) for access; admin routes require `forge_admin` or `lead`.
+
+### PM / dashboard (forge access)
+
+- `GET /api/forge/dashboard`
+- `GET /api/forge/build-requests`
+- `POST /api/forge/build-requests` (501 until Loop 7)
+- `GET /api/forge/build-requests/:id`
+
+### Administration (forge admin)
+
+- `GET|POST|PUT /api/forge/banks` — **implemented** (Loop 5: Zod validation, demo seed)
+- `GET|POST|PUT /api/forge/applications`
+- `GET|POST|PUT /api/forge/build-profiles`
+- `GET /api/forge/runners`
+
+### Worker (runner token — no user JWT)
+
+Registered outside the JWT plugin:
+
+- `POST /api/forge/runners/register`
+- `POST /api/forge/runners/:id/heartbeat`
+- `POST /api/forge/runners/:id/claim`
+- `POST /api/forge/platform-builds/:id/progress`
+- `POST /api/forge/platform-builds/:id/complete`
+- `POST /api/forge/platform-builds/:id/fail`
+
+See [docs/forge/CONTRACT.md](./forge/CONTRACT.md).
+
+## Engineering Catalog
+
+Requires JWT. Read: `lead`, `assistant`, `member`, `forge_admin`, `forge_pm`. Write/admin: `lead` only.
+
+### Overview & catalog entities
+
+- `GET /api/catalog/overview`
+- `GET /api/catalog/teams`
+- `GET /api/catalog/systems`
+- `GET /api/catalog/applications`
+- `GET /api/catalog/repositories` (pagination, filters)
+- `GET /api/catalog/repositories/:id`
+- `POST /api/catalog/repositories/preview`
+- `POST /api/catalog/repositories`
+- `POST /api/catalog/repositories/:id/sync`
+
+### Origin migration (lead)
+
+- `POST /api/catalog/repositories/:id/origin/preview`
+- `POST /api/catalog/repositories/:id/origin/migrate`
+- `GET /api/catalog/repositories/:id/origin/history`
+
+### Integrations & imports
+
+- `GET /api/catalog/connections`
+- `POST /api/catalog/connections/:id/verify`
+- `PUT /api/catalog/connections/:id/token`
+- `POST /api/catalog/imports/:dataset` (`backend` | `mobile` | `web`)
+- `GET /api/catalog/imports/:jobId`
+- `POST /api/catalog/imports/:jobId/commit`
+
+### Gaps, scorecards, Forge bridge
+
+- `GET|POST /api/catalog/gaps`
+- `POST /api/catalog/gaps/:id/link-triage`
+- `POST /api/catalog/gaps/:id/link-planning`
+- `POST /api/catalog/repositories/:id/scorecard/refresh`
+- `POST /api/catalog/forge/reconcile`
+- `POST /api/catalog/forge/link`
+
+### Sync & alerts
+
+- `GET /api/catalog/sync-runs`
+- `GET /api/catalog/alerts`
+
+### Webhooks (no JWT)
+
+- `POST /api/catalog/webhooks/gitlab/:connectionId`
+- `POST /api/catalog/webhooks/github/:connectionId`
+
+See [docs/catalog/README.md](./catalog/README.md).
 

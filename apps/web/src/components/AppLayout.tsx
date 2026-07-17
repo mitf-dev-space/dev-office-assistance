@@ -1,4 +1,4 @@
-import { useCallback, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import {
   ActionIcon,
   AppShell,
@@ -28,18 +28,29 @@ import {
   IconIdBadge2,
   IconLayoutGrid,
   IconListCheck,
+  IconClick,
   IconMail,
   IconLogout,
   IconAlertTriangle,
   IconCalendar,
   IconScale,
+  IconHammer,
+  IconList,
+  IconSettings,
+  IconDatabase,
+  IconPlug,
+  IconRefresh,
+  IconInbox,
 } from "@tabler/icons-react";
 import type { SessionUser } from "../auth/AuthContext";
+import { canAccessCatalog } from "@office/types";
+import { canAccessForge, canAdminForge, isForgeOnlyUser } from "../lib/forge/roles";
 import { useAppTheme } from "../theme/AppThemeContext";
 import { brandFooterLine, brandHomeAriaLabel, BRAND_NAME } from "../brand";
 import { AppLogo } from "./AppLogo";
 import { ThemeSwitcher } from "./ThemeSwitcher";
 import { GlobalSearchTrigger } from "./GlobalSearchModal";
+import { NavGroup } from "./NavGroup";
 
 const iconProps = { size: 22, stroke: 1.5 };
 const NAV_WIDTH_EXPANDED = 278;
@@ -47,6 +58,45 @@ const NAV_WIDTH_ICON_RAIL = 80;
 /** 48em at 16px root — fallback when viewport hook disagrees with matchMedia. */
 const SM_MIN_WIDTH_PX = 768;
 const NAV_COLLAPSE_STORAGE_KEY = "office-app-nav-desktop-collapsed";
+const NAV_GROUPS_STORAGE_KEY = "office-app-nav-groups";
+
+type NavGroupId = "work" | "programs" | "apps" | "catalog" | "forge";
+
+function pathToNavGroup(pathname: string): NavGroupId | null {
+  if (
+    pathname === "/" ||
+    pathname.startsWith("/triage") ||
+    pathname.startsWith("/priority") ||
+    pathname.startsWith("/standup") ||
+    pathname.startsWith("/decisions")
+  ) {
+    return "work";
+  }
+  if (
+    pathname.startsWith("/expenses") ||
+    pathname.startsWith("/planning") ||
+    pathname.startsWith("/developers") ||
+    pathname.startsWith("/team-management")
+  ) {
+    return "programs";
+  }
+  if (pathname.startsWith("/apps") || pathname.startsWith("/email")) return "apps";
+  if (pathname.startsWith("/catalog")) return "catalog";
+  if (pathname.startsWith("/forge")) return "forge";
+  return null;
+}
+
+function readNavGroupsFromStorage(): Partial<Record<NavGroupId, boolean>> {
+  if (typeof window === "undefined") return { work: true };
+  try {
+    const raw = window.localStorage.getItem(NAV_GROUPS_STORAGE_KEY);
+    if (raw == null) return { work: true };
+    const parsed = JSON.parse(raw) as Partial<Record<NavGroupId, boolean>>;
+    return { work: true, ...parsed };
+  } catch {
+    return { work: true };
+  }
+}
 
 /** Normalizes localStorage / hand-edits so collapse state is a real boolean. */
 function readNavCollapsedFromStorage(value: unknown): boolean {
@@ -154,11 +204,23 @@ export function AppLayout({ user, onLogout, children }: Props) {
   const [mobileOpen, { toggle, close }] = useDisclosure(false);
   /** In-memory + explicit localStorage (more reliable than Mantine useLocalStorage in some embedded/strict contexts). */
   const [navDesktopCollapsed, setNavDesktopCollapsed] = useState(readInitialNavCollapsed);
+  const [navGroups, setNavGroups] = useState(readNavGroupsFromStorage);
   const toggleNavDesktopCollapsed = useCallback(() => {
     setNavDesktopCollapsed((prev) => {
       const next = !prev;
       try {
         window.localStorage.setItem(NAV_COLLAPSE_STORAGE_KEY, JSON.stringify(next));
+      } catch {
+        /* ignore */
+      }
+      return next;
+    });
+  }, []);
+  const toggleNavGroup = useCallback((id: NavGroupId) => {
+    setNavGroups((prev) => {
+      const next = { ...prev, [id]: !prev[id] };
+      try {
+        window.localStorage.setItem(NAV_GROUPS_STORAGE_KEY, JSON.stringify(next));
       } catch {
         /* ignore */
       }
@@ -178,6 +240,28 @@ export function AppLayout({ user, onLogout, children }: Props) {
     Boolean(isSmByMedia) || (viewportWidth > 0 && viewportWidth >= SM_MIN_WIDTH_PX);
   const showIconRail = navDesktopCollapsed && isDesktopLayout;
   const navbarWidth = showIconRail ? NAV_WIDTH_ICON_RAIL : NAV_WIDTH_EXPANDED;
+  const showHelmCore = !isForgeOnlyUser(user.role);
+  const showForge = canAccessForge(user.role);
+  const showForgeAdmin = canAdminForge(user.role);
+  const showCatalog = canAccessCatalog(user.role);
+  const homePath = showHelmCore ? "/" : "/forge";
+  const activeNavGroup = pathToNavGroup(pathname);
+
+  useEffect(() => {
+    if (!activeNavGroup) return;
+    setNavGroups((prev) => {
+      if (prev[activeNavGroup]) return prev;
+      const next = { ...prev, [activeNavGroup]: true };
+      try {
+        window.localStorage.setItem(NAV_GROUPS_STORAGE_KEY, JSON.stringify(next));
+      } catch {
+        /* ignore */
+      }
+      return next;
+    });
+  }, [activeNavGroup]);
+
+  const isGroupOpen = (id: NavGroupId) => Boolean(navGroups[id]);
 
   const navActive = (path: string, options?: { end?: boolean; prefix?: boolean }) => {
     if (options?.prefix) {
@@ -226,7 +310,7 @@ export function AppLayout({ user, onLogout, children }: Props) {
             <Tooltip label={BRAND_NAME} position="right" withArrow offset={6} openDelay={200}>
               <UnstyledButton
                 component={Link}
-                to="/"
+                to={homePath}
                 onClick={close}
                 w="100%"
                 h={40}
@@ -249,7 +333,7 @@ export function AppLayout({ user, onLogout, children }: Props) {
           ) : (
             <Link
               className="app-nav-brand app-nav-brand--has-logo"
-              to="/"
+              to={homePath}
               onClick={close}
               title="Back to dashboard"
             >
@@ -267,157 +351,304 @@ export function AppLayout({ user, onLogout, children }: Props) {
             paddingTop: showIconRail ? 2 : 0,
           }}
         >
-          {!showIconRail && (
-            <Text size="xs" fw={700} tt="uppercase" c="dimmed" pl="md" mb={6} mt={4}>
-              Work
-            </Text>
-          )}
-          <AppNavItem
-            to="/"
-            label="Dashboard"
-            leftSection={<IconLayoutDashboard {...iconProps} />}
-            onClick={close}
-            active={navActive("/", { end: true })}
-            showIconRail={showIconRail}
-            color={primary}
-            mb={4}
-          />
-          <AppNavItem
-            to="/triage/new"
-            label="New item"
-            leftSection={<IconPlus {...iconProps} />}
-            onClick={close}
-            active={navActive("/triage/new", { end: true })}
-            showIconRail={showIconRail}
-            color={primary}
-            mb={4}
-          />
-          <AppNavItem
-            to="/priority"
-            label="Blockers & risk"
-            leftSection={<IconAlertTriangle {...iconProps} />}
-            onClick={close}
-            active={navActive("/priority", { end: true })}
-            showIconRail={showIconRail}
-            color="orange"
-            mb={4}
-          />
-          <AppNavItem
-            to="/standup"
-            label="Check-in"
-            leftSection={<IconCalendar {...iconProps} />}
-            onClick={close}
-            active={navActive("/standup", { end: true })}
-            showIconRail={showIconRail}
-            color="teal"
-            mb={4}
-          />
-          <AppNavItem
-            to="/decisions"
-            label="Decisions"
-            leftSection={<IconScale {...iconProps} />}
-            onClick={close}
-            active={navActive("/decisions", { end: true })}
-            showIconRail={showIconRail}
-            color="indigo"
-            mb="lg"
-          />
+          {showHelmCore && (
+            <>
+              <NavGroup
+                id="work"
+                label="Work"
+                flatten={showIconRail}
+                expanded={isGroupOpen("work")}
+                onToggle={() => toggleNavGroup("work")}
+                active={activeNavGroup === "work"}
+              >
+                <AppNavItem
+                  to="/"
+                  label="Dashboard"
+                  leftSection={<IconLayoutDashboard {...iconProps} />}
+                  onClick={close}
+                  active={navActive("/", { end: true })}
+                  showIconRail={showIconRail}
+                  color={primary}
+                />
+                <AppNavItem
+                  to="/triage"
+                  label="Triage"
+                  leftSection={<IconInbox {...iconProps} />}
+                  onClick={close}
+                  active={navActive("/triage", { prefix: true }) && !pathname.startsWith("/triage/new")}
+                  showIconRail={showIconRail}
+                  color={primary}
+                />
+                <AppNavItem
+                  to="/triage/new"
+                  label="New item"
+                  leftSection={<IconPlus {...iconProps} />}
+                  onClick={close}
+                  active={navActive("/triage/new", { end: true })}
+                  showIconRail={showIconRail}
+                  color={primary}
+                />
+                <AppNavItem
+                  to="/priority"
+                  label="Blockers & risk"
+                  leftSection={<IconAlertTriangle {...iconProps} />}
+                  onClick={close}
+                  active={navActive("/priority", { end: true })}
+                  showIconRail={showIconRail}
+                  color="orange"
+                />
+                <AppNavItem
+                  to="/standup"
+                  label="Check-in"
+                  leftSection={<IconCalendar {...iconProps} />}
+                  onClick={close}
+                  active={navActive("/standup", { end: true })}
+                  showIconRail={showIconRail}
+                  color="teal"
+                />
+                <AppNavItem
+                  to="/decisions"
+                  label="Decisions"
+                  leftSection={<IconScale {...iconProps} />}
+                  onClick={close}
+                  active={navActive("/decisions", { end: true })}
+                  showIconRail={showIconRail}
+                  color="indigo"
+                />
+              </NavGroup>
 
-          {!showIconRail && (
-            <Text size="xs" fw={700} tt="uppercase" c="dimmed" pl="md" mb={6}>
-              Programs
-            </Text>
-          )}
-          {showIconRail && <Box mb={4} />}
-          <AppNavItem
-            to="/expenses"
-            label="Expenses"
-            leftSection={<IconReceipt2 {...iconProps} />}
-            onClick={close}
-            active={navActive("/expenses", { prefix: true })}
-            showIconRail={showIconRail}
-            color={primary}
-            mb={4}
-          />
-          <AppNavItem
-            to="/planning"
-            label="Planning"
-            leftSection={<IconTimelineEvent {...iconProps} />}
-            onClick={close}
-            active={navActive("/planning", { prefix: true })}
-            showIconRail={showIconRail}
-            color={primary}
-            mb={4}
-          />
-          <AppNavItem
-            to="/developers"
-            label="Dev management"
-            leftSection={<IconUsers {...iconProps} />}
-            onClick={close}
-            active={navActive("/developers", { prefix: true })}
-            showIconRail={showIconRail}
-            color={primary}
-            mb={4}
-          />
-          <AppNavItem
-            to="/team-management"
-            label="Team management"
-            leftSection={<IconUsersGroup {...iconProps} />}
-            onClick={close}
-            active={navActive("/team-management", { end: true })}
-            showIconRail={showIconRail}
-            color={primary}
-            mb="lg"
-          />
+              <NavGroup
+                id="programs"
+                label="Programs"
+                flatten={showIconRail}
+                expanded={isGroupOpen("programs")}
+                onToggle={() => toggleNavGroup("programs")}
+                active={activeNavGroup === "programs"}
+              >
+                <AppNavItem
+                  to="/expenses"
+                  label="Expenses"
+                  leftSection={<IconReceipt2 {...iconProps} />}
+                  onClick={close}
+                  active={navActive("/expenses", { prefix: true })}
+                  showIconRail={showIconRail}
+                  color={primary}
+                />
+                <AppNavItem
+                  to="/planning"
+                  label="Planning"
+                  leftSection={<IconTimelineEvent {...iconProps} />}
+                  onClick={close}
+                  active={navActive("/planning", { prefix: true })}
+                  showIconRail={showIconRail}
+                  color={primary}
+                />
+                <AppNavItem
+                  to="/developers"
+                  label="Dev management"
+                  leftSection={<IconUsers {...iconProps} />}
+                  onClick={close}
+                  active={navActive("/developers", { prefix: true })}
+                  showIconRail={showIconRail}
+                  color={primary}
+                />
+                <AppNavItem
+                  to="/team-management"
+                  label="Team management"
+                  leftSection={<IconUsersGroup {...iconProps} />}
+                  onClick={close}
+                  active={navActive("/team-management", { end: true })}
+                  showIconRail={showIconRail}
+                  color={primary}
+                />
+              </NavGroup>
 
-          {!showIconRail && (
-            <Text size="xs" fw={700} tt="uppercase" c="dimmed" pl="md" mb={6}>
-              Apps
-            </Text>
+              <NavGroup
+                id="apps"
+                label="Apps"
+                flatten={showIconRail}
+                expanded={isGroupOpen("apps")}
+                onToggle={() => toggleNavGroup("apps")}
+                active={activeNavGroup === "apps"}
+              >
+                <AppNavItem
+                  to="/apps"
+                  label="All apps"
+                  leftSection={<IconLayoutGrid {...iconProps} />}
+                  onClick={close}
+                  active={navActive("/apps", { end: true })}
+                  showIconRail={showIconRail}
+                  color={primary}
+                />
+                <AppNavItem
+                  to="/apps/outlook"
+                  label="Outlook"
+                  leftSection={<IconMail {...iconProps} />}
+                  onClick={close}
+                  active={navActive("/apps/outlook", { prefix: true })}
+                  showIconRail={showIconRail}
+                  color={primary}
+                />
+                <AppNavItem
+                  to="/apps/todo"
+                  label="Microsoft To Do"
+                  leftSection={<IconListCheck {...iconProps} />}
+                  onClick={close}
+                  active={navActive("/apps/todo", { prefix: true })}
+                  showIconRail={showIconRail}
+                  color={primary}
+                />
+                <AppNavItem
+                  to="/apps/clickup"
+                  label="ClickUp"
+                  leftSection={<IconClick {...iconProps} />}
+                  onClick={close}
+                  active={navActive("/apps/clickup", { prefix: true })}
+                  showIconRail={showIconRail}
+                  color={primary}
+                />
+                {user.role === "lead" && (
+                  <AppNavItem
+                    to="/apps/registration"
+                    label="App registration"
+                    leftSection={<IconIdBadge2 {...iconProps} />}
+                    onClick={close}
+                    active={navActive("/apps/registration", { end: true })}
+                    showIconRail={showIconRail}
+                    color={primary}
+                  />
+                )}
+              </NavGroup>
+            </>
           )}
-          {showIconRail && <Box mb={4} />}
-          {user.role === "lead" && (
-            <AppNavItem
-              to="/apps/registration"
-              label="App registration"
-              leftSection={<IconIdBadge2 {...iconProps} />}
-              onClick={close}
-              active={navActive("/apps/registration", { end: true })}
-              showIconRail={showIconRail}
-              color={primary}
-              mb={4}
-            />
+
+          {showCatalog && (
+            <NavGroup
+              id="catalog"
+              label="Engineering"
+              flatten={showIconRail}
+              expanded={isGroupOpen("catalog")}
+              onToggle={() => toggleNavGroup("catalog")}
+              active={activeNavGroup === "catalog"}
+            >
+              <AppNavItem
+                to="/catalog"
+                label="Catalog overview"
+                leftSection={<IconDatabase {...iconProps} />}
+                onClick={close}
+                active={navActive("/catalog", { end: true })}
+                showIconRail={showIconRail}
+                color={primary}
+              />
+              <AppNavItem
+                to="/catalog/repositories"
+                label="Repositories"
+                leftSection={<IconList {...iconProps} />}
+                onClick={close}
+                active={navActive("/catalog/repositories", { prefix: true })}
+                showIconRail={showIconRail}
+                color={primary}
+              />
+              <AppNavItem
+                to="/catalog/integrations"
+                label="Integrations"
+                leftSection={<IconPlug {...iconProps} />}
+                onClick={close}
+                active={navActive("/catalog/integrations", { end: true })}
+                showIconRail={showIconRail}
+                color={primary}
+              />
+              <AppNavItem
+                to="/catalog/sync"
+                label="Sync activity"
+                leftSection={<IconRefresh {...iconProps} />}
+                onClick={close}
+                active={navActive("/catalog/sync", { end: true })}
+                showIconRail={showIconRail}
+                color={primary}
+              />
+              <AppNavItem
+                to="/catalog/imports"
+                label="Imports"
+                leftSection={<IconLayoutGrid {...iconProps} />}
+                onClick={close}
+                active={navActive("/catalog/imports", { end: true })}
+                showIconRail={showIconRail}
+                color={primary}
+              />
+              <AppNavItem
+                to="/catalog/gaps"
+                label="Engineering gaps"
+                leftSection={<IconAlertTriangle {...iconProps} />}
+                onClick={close}
+                active={navActive("/catalog/gaps", { end: true })}
+                showIconRail={showIconRail}
+                color={primary}
+              />
+              <AppNavItem
+                to="/catalog/policies"
+                label="Scorecard policies"
+                leftSection={<IconScale {...iconProps} />}
+                onClick={close}
+                active={navActive("/catalog/policies", { end: true })}
+                showIconRail={showIconRail}
+                color={primary}
+              />
+            </NavGroup>
           )}
-          <AppNavItem
-            to="/apps"
-            label="All apps"
-            leftSection={<IconLayoutGrid {...iconProps} />}
-            onClick={close}
-            active={navActive("/apps", { end: true })}
-            showIconRail={showIconRail}
-            color={primary}
-            mb={4}
-          />
-          <AppNavItem
-            to="/apps/outlook"
-            label="Outlook"
-            leftSection={<IconMail {...iconProps} />}
-            onClick={close}
-            active={navActive("/apps/outlook", { prefix: true })}
-            showIconRail={showIconRail}
-            color={primary}
-            mb={4}
-          />
-          <AppNavItem
-            to="/apps/todo"
-            label="Microsoft To Do"
-            leftSection={<IconListCheck {...iconProps} />}
-            onClick={close}
-            active={navActive("/apps/todo", { prefix: true })}
-            showIconRail={showIconRail}
-            color={primary}
-            mb="md"
-          />
+
+          {showForge && (
+            <NavGroup
+              id="forge"
+              label="Forge"
+              flatten={showIconRail}
+              expanded={isGroupOpen("forge")}
+              onToggle={() => toggleNavGroup("forge")}
+              active={activeNavGroup === "forge"}
+            >
+              <AppNavItem
+                to="/forge"
+                label="Forge dashboard"
+                leftSection={<IconHammer {...iconProps} />}
+                onClick={close}
+                active={navActive("/forge", { end: true })}
+                showIconRail={showIconRail}
+                color={primary}
+              />
+              <AppNavItem
+                to="/forge/builds"
+                label="Builds"
+                leftSection={<IconList {...iconProps} />}
+                onClick={close}
+                active={
+                  navActive("/forge/builds", { prefix: true }) &&
+                  !navActive("/forge/builds/new", { end: true })
+                }
+                showIconRail={showIconRail}
+                color={primary}
+              />
+              <AppNavItem
+                to="/forge/builds/new"
+                label="Request build"
+                leftSection={<IconPlus {...iconProps} />}
+                onClick={close}
+                active={navActive("/forge/builds/new", { end: true })}
+                showIconRail={showIconRail}
+                color={primary}
+              />
+              {showForgeAdmin && (
+                <AppNavItem
+                  to="/forge/admin"
+                  label="Forge admin"
+                  leftSection={<IconSettings {...iconProps} />}
+                  onClick={close}
+                  active={navActive("/forge/admin", { end: true })}
+                  showIconRail={showIconRail}
+                  color={primary}
+                />
+              )}
+            </NavGroup>
+          )}
         </ScrollArea>
 
         <Box

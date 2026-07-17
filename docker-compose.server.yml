@@ -1,0 +1,15 @@
+# DEPRECATED — do not use for new LAN deploys.
+#
+# Canonical production compose lives in:
+#   deploy/compose.production.yml
+# with env file:
+#   deploy/.env.production  (from .env.production.example)
+#
+# On the shared server (10.100.235.21):
+#   ~/compose-dev-office-assistance/
+#
+# Ports (unchanged): web 46810, API 46811 — do not collide with OmniTest 46300/46400.
+#
+# See: deploy/README.md and docs/deployment/production-lan-deploy-runbook.md
+
+services: {}

@@ -1,39 +1,26 @@
 generator client {
-
   provider = "prisma-client-js"
-
 }
-
-
 
 datasource db {
-
   provider = "postgresql"
 
-  url      = env("DATABASE_URL")
-
+  url = env("DATABASE_URL")
 }
-
-
 
 /// Microsoft Entra app (SPA) IDs for MSAL: optional until set in the UI or via server env.
 
 model M365AppSettings {
+  id String @id @default("default")
 
-  id        String  @id @default("default")
+  tenantId String?
 
-  tenantId  String?
-
-  clientId  String?
+  clientId String?
 
   updatedAt DateTime @updatedAt
-
 }
 
-
-
 enum TriageCategory {
-
   blocker
 
   risk
@@ -43,13 +30,9 @@ enum TriageCategory {
   process
 
   other
-
 }
 
-
-
 enum TriageStatus {
-
   inbox
 
   in_progress
@@ -59,54 +42,46 @@ enum TriageStatus {
   done
 
   dropped
-
 }
 
-
-
 enum SourceType {
-
   outlook
 
   manual
 
   microsoft_todo
 
+  clickup
 }
-
-
 
 /// People who can sign in (you + assistance). Roster for triage/teams is `Developer`.
 
 model User {
+  id String @id @default(uuid())
 
-  id           String   @id @default(uuid())
-
-  email        String   @unique
+  email String @unique
 
   passwordHash String
 
-  displayName  String?
+  displayName String?
 
-  role         String   @default("member")
+  role String @default("member")
 
   /// Future: email when assigned triage (requires SMTP or Graph mail).
-  notifyEmailTriage   Boolean  @default(false) @map("notify_email_triage")
+  notifyEmailTriage Boolean @default(false) @map("notify_email_triage")
 
   /// Future: weekly digest email (not wired in v1).
-  notifyEmailDigest   Boolean  @default(false) @map("notify_email_digest")
+  notifyEmailDigest Boolean @default(false) @map("notify_email_digest")
 
-  createdAt    DateTime @default(now())
+  createdAt DateTime @default(now())
 
-  updatedAt    DateTime @updatedAt
+  updatedAt DateTime @updatedAt
 
+  createdItems TriageItem[] @relation("CreatedBy")
 
+  attachments TriageAttachment[]
 
-  createdItems  TriageItem[]       @relation("CreatedBy")
-
-  attachments   TriageAttachment[]
-
-  expenses      Expense[]
+  expenses Expense[]
 
   planningItems PlanningItem[]
 
@@ -114,201 +89,185 @@ model User {
 
   authoredDecisions TeamDecision[]
 
+  forgeBuildRequests ForgeBuildRequest[]
+
+  catalogTeamAssignments     CatalogTeamAssignment[]
+  signalOverrides            SignalOverride[]
+  repositoryOriginMigrations RepositoryOriginHistory[]
+  importJobs                 RepositoryImportJob[]
+  auditEvents                AuditEvent[]
+  clickUpConnectionsCreated  ClickUpConnection[]     @relation("ClickUpConnectionCreatedBy")
+  clickUpConnectionsUpdated  ClickUpConnection[]     @relation("ClickUpConnectionUpdatedBy")
 }
-
-
 
 /// Roster entry: no login. Grouped in teams on Team management; assignable in triage.
 
 model Developer {
-
-  id         String   @id @default(uuid())
+  id String @id @default(uuid())
 
   displayName String
 
-  skills     String?  @db.Text
+  skills String? @db.Text
 
-  workEmail     String?  @map("work_email")      @db.VarChar(320)  @unique
-  phone         String?  @map("phone")          @db.VarChar(64)
-  location      String?  @map("location")       @db.VarChar(200)
-  bio           String?  @map("bio")            @db.Text
-  skillDetails  String?  @map("skill_details")  @db.Text
-  achievements  String?  @map("achievements")   @db.Text
+  workEmail    String? @unique @map("work_email") @db.VarChar(320)
+  phone        String? @map("phone") @db.VarChar(64)
+  location     String? @map("location") @db.VarChar(200)
+  bio          String? @map("bio") @db.Text
+  skillDetails String? @map("skill_details") @db.Text
+  achievements String? @map("achievements") @db.Text
 
   /// HR title from org sheet (e.g. Back-End Manager, Front-End (Web)).
-  jobTitle  String?  @map("job_title")  @db.VarChar(200)
+  jobTitle String? @map("job_title") @db.VarChar(200)
 
-  hireDate  DateTime?  @map("hire_date")  @db.Date
+  hireDate DateTime? @map("hire_date") @db.Date
 
   /// As on HR sheet, e.g. "7 years, 0 months" (optional; hireDate is source of truth when set).
-  tenureLabel  String?  @map("tenure_label")  @db.VarChar(120)
+  tenureLabel String? @map("tenure_label") @db.VarChar(120)
 
-  rosterPosition  RosterPosition  @default(member)  @map("roster_position")
+  rosterPosition RosterPosition @default(member) @map("roster_position")
 
-  createdAt  DateTime @default(now())
+  createdAt DateTime @default(now())
 
-  updatedAt  DateTime @updatedAt
-
-
+  updatedAt DateTime @updatedAt
 
   teamMemberships TeamMembership[]
 
-  assignedTriage  TriageItem[]     @relation("TriageAssignee")
+  assignedTriage TriageItem[] @relation("TriageAssignee")
 
+  catalogTeamAssignments CatalogTeamAssignment[]
+  ownedRepositories      Repository[]            @relation("RepoTechnicalOwner")
+  clickUpUserMappings    ClickUpUserMapping[]
 }
-
-
 
 model TriageItem {
+  id String @id @default(uuid())
 
-  id                    String         @id @default(uuid())
+  title String
 
-  title                 String
+  description String?
 
-  description           String?
+  category TriageCategory
 
-  category              TriageCategory
+  status TriageStatus @default(inbox)
 
-  status                TriageStatus   @default(inbox)
+  nextAction String?
 
-  nextAction            String?
+  dueAt DateTime?
 
-  dueAt                 DateTime?
+  snoozedUntil DateTime?
 
-  snoozedUntil          DateTime?
+  assigneeDeveloperId String
 
-  assigneeDeveloperId   String
+  assignee Developer @relation("TriageAssignee", fields: [assigneeDeveloperId], references: [id])
 
-  assignee              Developer      @relation("TriageAssignee", fields: [assigneeDeveloperId], references: [id])
+  sourceType SourceType @default(manual)
 
-  sourceType            SourceType     @default(manual)
+  graphMessageId String? @unique
 
-  graphMessageId        String?        @unique
+  graphWebLink String?
 
-  graphWebLink          String?
-
-  sourcePreview         String?
+  sourcePreview String?
 
   /// Microsoft To Do list id (Graph). Set by /api/todo/import; pairs with graphTodoTaskId.
-  graphTodoListId       String?
+  graphTodoListId String?
 
   /// Microsoft To Do task id. Unique together with graphTodoListId for upsert.
-  graphTodoTaskId       String?
+  graphTodoTaskId String?
 
-  lastTodoSyncedAt      DateTime?
+  lastTodoSyncedAt DateTime?
 
   /// Bank program or client (optional tag for reporting).
-  program               String?        @db.VarChar(200)
+  program String? @db.VarChar(200)
 
   /// Mark as leadership-visible escalation (priority queue).
-  escalated             Boolean        @default(false)
+  escalated Boolean @default(false)
 
-  createdById           String
+  createdById String
 
-  createdBy             User           @relation("CreatedBy", fields: [createdById], references: [id])
+  createdBy User @relation("CreatedBy", fields: [createdById], references: [id])
 
-  createdAt             DateTime       @default(now())
+  createdAt DateTime @default(now())
 
-  updatedAt             DateTime       @updatedAt
+  updatedAt DateTime @updatedAt
 
-  attachments           TriageAttachment[]
+  attachments TriageAttachment[]
 
-  planningLinks         PlanningTriageItem[]
+  planningLinks PlanningTriageItem[]
 
-  teamDecisions         TeamDecision[]   @relation("DecisionTriage")
+  teamDecisions TeamDecision[] @relation("DecisionTriage")
 
-
+  engineeringGaps    EngineeringGap[]
+  externalWorkItems  ExternalWorkItem[]
 
   @@unique([graphTodoListId, graphTodoTaskId])
-
   @@index([status, dueAt])
-
   @@index([assigneeDeveloperId])
-
   @@index([category])
-
   @@index([program])
-
 }
-
-
 
 /// Files linked to a triage item (audio, PDF, images, etc.)
 
 model TriageAttachment {
-
-  id           String     @id @default(uuid())
+  id String @id @default(uuid())
 
   triageItemId String
 
-  triageItem   TriageItem @relation(fields: [triageItemId], references: [id], onDelete: Cascade)
+  triageItem TriageItem @relation(fields: [triageItemId], references: [id], onDelete: Cascade)
 
   originalName String
 
-  mimeType     String
+  mimeType String
 
-  sizeBytes    Int
+  sizeBytes Int
 
-  storageKey   String     @unique
+  storageKey String @unique
 
-  createdById  String
+  createdById String
 
-  createdBy    User       @relation(fields: [createdById], references: [id])
+  createdBy User @relation(fields: [createdById], references: [id])
 
-  createdAt    DateTime   @default(now())
-
-
+  createdAt DateTime @default(now())
 
   @@index([triageItemId])
-
 }
-
-
 
 /// Department-level spend tracking (receipts optional).
 
 model Expense {
+  id String @id @default(uuid())
 
-  id            String   @id @default(uuid())
+  title String
 
-  title         String
+  description String?
 
-  description   String?
+  amount Decimal @db.Decimal(12, 2)
 
-  amount        Decimal  @db.Decimal(12, 2)
+  currency String @default("USD")
 
-  currency      String   @default("USD")
+  department String
 
-  department    String
+  category String
 
-  category      String
+  expenseDate DateTime
 
-  expenseDate   DateTime
+  receiptKey String?
 
-  receiptKey    String?
+  receiptName String?
 
-  receiptName   String?
+  createdById String
 
-  createdById   String
+  createdBy User @relation(fields: [createdById], references: [id])
 
-  createdBy     User     @relation(fields: [createdById], references: [id])
+  createdAt DateTime @default(now())
 
-  createdAt     DateTime @default(now())
-
-  updatedAt     DateTime @updatedAt
-
-
+  updatedAt DateTime @updatedAt
 
   @@index([department])
-
   @@index([expenseDate])
-
 }
 
-
-
 enum PlanningStatus {
-
   draft
 
   active
@@ -316,29 +275,21 @@ enum PlanningStatus {
   done
 
   cancelled
-
 }
-
-
 
 /// Director vs assistant (org chart); all others are `member` with optional per-team lead role.
 
 enum RosterPosition {
-
   member
 
   department_head
 
   department_assistant
-
 }
-
-
 
 /// Engineering teams for roster / team management.
 
 enum DevTeam {
-
   backend
 
   qa
@@ -346,169 +297,1276 @@ enum DevTeam {
   frontend_web
 
   frontend_mobile
-
 }
-
-
 
 /// Roadmap / planning items (initiatives, milestones) per dev area.
 
 model PlanningItem {
+  id String @id @default(uuid())
 
-  id            String         @id @default(uuid())
+  title String
 
-  title         String
+  description String?
 
-  description   String?
+  department String?
 
-  department    String?
-
-  targetDate    DateTime?
+  targetDate DateTime?
 
   /// Bank program or client (optional tag).
-  program       String?        @db.VarChar(200)
+  program String? @db.VarChar(200)
 
-  status        PlanningStatus @default(draft)
+  status PlanningStatus @default(draft)
 
-  createdById   String
+  createdById String
 
-  createdBy     User           @relation(fields: [createdById], references: [id])
+  createdBy User @relation(fields: [createdById], references: [id])
 
-  createdAt     DateTime       @default(now())
+  createdAt DateTime @default(now())
 
-  updatedAt     DateTime       @updatedAt
+  updatedAt DateTime @updatedAt
 
-  triageLinks   PlanningTriageItem[]
+  triageLinks PlanningTriageItem[]
 
-  teamDecisions TeamDecision[]   @relation("DecisionPlanning")
+  teamDecisions TeamDecision[] @relation("DecisionPlanning")
 
-
+  engineeringGaps EngineeringGap[]
 
   @@index([status])
-
   @@index([targetDate])
-
 }
-
-
 
 /// Developer membership in a dev team (one row per person per team).
 
 model TeamMembership {
-
-  id          String    @id @default(uuid())
+  id String @id @default(uuid())
 
   developerId String
 
-  developer   Developer @relation(fields: [developerId], references: [id], onDelete: Cascade)
+  developer Developer @relation(fields: [developerId], references: [id], onDelete: Cascade)
 
-  team        DevTeam
+  team DevTeam
 
   /// That team’s manager/leader in the org sheet.
-  isTeamLead  Boolean  @default(false)  @map("is_team_lead")
+  isTeamLead Boolean @default(false) @map("is_team_lead")
 
-  createdAt   DateTime  @default(now())
-
-
+  createdAt DateTime @default(now())
 
   @@unique([developerId, team])
-
   @@index([team])
-
   @@index([developerId])
-
 }
-
-
 
 /// Many-to-many: initiative ↔ related triage work items.
 model PlanningTriageItem {
-
   planningItemId String
 
-  triageItemId   String
+  triageItemId String
 
-  planningItem   PlanningItem @relation(fields: [planningItemId], references: [id], onDelete: Cascade)
+  planningItem PlanningItem @relation(fields: [planningItemId], references: [id], onDelete: Cascade)
 
-  triageItem     TriageItem   @relation(fields: [triageItemId], references: [id], onDelete: Cascade)
+  triageItem TriageItem @relation(fields: [triageItemId], references: [id], onDelete: Cascade)
 
-  createdAt      DateTime     @default(now())
-
-
+  createdAt DateTime @default(now())
 
   @@id([planningItemId, triageItemId])
-
   @@index([triageItemId])
-
 }
-
-
 
 /// Cadence: what shipped last period, what is next, blockers (two signed-in users).
 model StandupCheckIn {
+  id String @id @default(uuid())
 
-  id         String   @id @default(uuid())
+  userId String
 
-  userId     String
-
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   /// Monday (UTC) of the week; one row per user per week.
-  weekStart  DateTime @db.Date
+  weekStart DateTime @db.Date
 
-  priorWork  String   @default("") @db.Text
+  priorWork String @default("") @db.Text
 
-  nextWork   String   @default("") @db.Text
+  nextWork String @default("") @db.Text
 
-  blockers   String   @default("") @db.Text
+  blockers String @default("") @db.Text
 
-  createdAt  DateTime @default(now())
+  createdAt DateTime @default(now())
 
-  updatedAt  DateTime @updatedAt
-
-
+  updatedAt DateTime @updatedAt
 
   @@unique([userId, weekStart])
-
   @@index([weekStart])
-
 }
-
-
 
 /// Lightweight decision log (ADRs) with optional triage or planning links.
 model TeamDecision {
+  id String @id @default(uuid())
 
-  id     String @id @default(uuid())
+  title String @db.VarChar(500)
 
-  title  String @db.VarChar(500)
-
-  body   String @db.Text
+  body String @db.Text
 
   decidedOn DateTime @db.Date
 
   createdById String
 
-  createdBy  User  @relation(fields: [createdById], references: [id])
+  createdBy User @relation(fields: [createdById], references: [id])
 
-  relatedTriageItemId   String?
+  relatedTriageItemId String?
 
-  relatedTriageItem     TriageItem?   @relation("DecisionTriage", fields: [relatedTriageItemId], references: [id], onDelete: SetNull)
+  relatedTriageItem TriageItem? @relation("DecisionTriage", fields: [relatedTriageItemId], references: [id], onDelete: SetNull)
 
   relatedPlanningItemId String?
 
-  relatedPlanningItem   PlanningItem? @relation("DecisionPlanning", fields: [relatedPlanningItemId], references: [id], onDelete: SetNull)
+  relatedPlanningItem PlanningItem? @relation("DecisionPlanning", fields: [relatedPlanningItemId], references: [id], onDelete: SetNull)
 
-  createdAt  DateTime @default(now())
+  createdAt DateTime @default(now())
 
-  updatedAt  DateTime @updatedAt
-
-
+  updatedAt DateTime @updatedAt
 
   @@index([decidedOn])
-
   @@index([createdById])
-
 }
 
+// ── Forge module (Flutter mobile build portal) ───────────────────────────────
 
+enum ForgePlatform {
+  Android
+  iOS
+}
+
+enum ForgeBuildStatus {
+  Draft
+  Queued
+  WaitingForCompatibleRunner
+  Claimed
+  PreparingWorkspace
+  CloningRepository
+  Building
+  Signing
+  CollectingArtifact
+  UploadingArtifact
+  Succeeded
+  Failed
+  Cancelled
+  TimedOut
+  PartiallySucceeded
+  InProgress
+  SimulationCompleted
+}
+
+enum ForgeRunnerStatus {
+  Online
+  Offline
+  Draining
+}
+
+enum ForgeOperatingSystem {
+  Windows
+  macOS
+  Linux
+}
+
+model ForgeBank {
+  id                   String                @id @default(uuid())
+  name                 String
+  code                 String                @unique
+  isActive             Boolean               @default(true)
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+  applications         ForgeApplication[]
+  bankApplicationLinks BankApplicationLink[]
+}
+
+model ForgeApplication {
+  id                      String              @id @default(uuid())
+  bankId                  String
+  bank                    ForgeBank           @relation(fields: [bankId], references: [id], onDelete: Cascade)
+  name                    String
+  description             String?
+  repositoryProvider      String
+  repositoryUrl           String
+  repositoryCredentialRef String?
+  /**
+   * Monorepo Flutter root relative to repo clone (e.g. mobile/gateway_tester).
+   */
+  projectSubpath          String?
+  defaultBranch           String              @default("main")
+  requiredFlutterVersion  String?
+  androidEnabled          Boolean             @default(true)
+  iosEnabled              Boolean             @default(true)
+  isActive                Boolean             @default(true)
+  catalogApplicationId    String?             @map("catalog_application_id")
+  catalogApplication      CatalogApplication? @relation(fields: [catalogApplicationId], references: [id], onDelete: SetNull)
+  repositoryId            String?             @map("repository_id")
+  repository              Repository?         @relation(fields: [repositoryId], references: [id], onDelete: SetNull)
+  createdAt               DateTime            @default(now())
+  updatedAt               DateTime            @updatedAt
+  buildProfiles           ForgeBuildProfile[]
+  buildRequests           ForgeBuildRequest[]
+
+  @@index([bankId])
+  @@index([catalogApplicationId])
+  @@index([repositoryId])
+}
+
+model ForgeBuildProfile {
+  id                  String              @id @default(uuid())
+  applicationId       String
+  application         ForgeApplication    @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  name                String
+  description         String?
+  flutterFlavor       String?
+  dartEntryPoint      String              @default("lib/main.dart")
+  environmentName     String?
+  androidArtifactType String              @default("apk")
+  androidBuildMode    String              @default("release")
+  iosExportMethod     String?
+  timeoutMinutes      Int                 @default(60)
+  isActive            Boolean             @default(true)
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+  buildRequests       ForgeBuildRequest[]
+
+  @@index([applicationId])
+}
+
+model ForgeBuildRequest {
+  id                String               @id @default(uuid())
+  applicationId     String
+  application       ForgeApplication     @relation(fields: [applicationId], references: [id])
+  buildProfileId    String
+  buildProfile      ForgeBuildProfile    @relation(fields: [buildProfileId], references: [id])
+  requestedById     String
+  requestedBy       User                 @relation(fields: [requestedById], references: [id])
+  gitReferenceType  String               @default("branch")
+  gitReference      String
+  resolvedCommitSha String?
+  requestNote       String?
+  overallStatus     ForgeBuildStatus     @default(Queued)
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+  startedAtUtc      DateTime?
+  completedAtUtc    DateTime?
+  platformBuilds    ForgePlatformBuild[]
+
+  @@index([applicationId])
+  @@index([requestedById])
+  @@index([overallStatus])
+}
+
+model ForgePlatformBuild {
+  id              String            @id @default(uuid())
+  buildRequestId  String
+  buildRequest    ForgeBuildRequest @relation(fields: [buildRequestId], references: [id], onDelete: Cascade)
+  platform        ForgePlatform
+  status          ForgeBuildStatus  @default(Queued)
+  runnerId        String?
+  runner          ForgeRunner?      @relation(fields: [runnerId], references: [id], onDelete: SetNull)
+  attemptNumber   Int               @default(1)
+  simulationOnly  Boolean           @default(false)
+  queuedAtUtc     DateTime          @default(now())
+  startedAtUtc    DateTime?
+  completedAtUtc  DateTime?
+  failureCategory String?
+  failureSummary  String?
+  artifacts       ForgeArtifact[]
+
+  @@index([buildRequestId])
+  @@index([status])
+  @@index([runnerId])
+}
+
+model ForgeArtifact {
+  id              String             @id @default(uuid())
+  platformBuildId String
+  platformBuild   ForgePlatformBuild @relation(fields: [platformBuildId], references: [id], onDelete: Cascade)
+  fileName        String
+  contentType     String
+  fileSizeBytes   BigInt             @default(0)
+  checksumSha256  String?
+  storagePath     String
+  createdAt       DateTime           @default(now())
+  expiresAtUtc    DateTime?
+
+  @@index([platformBuildId])
+}
+
+model ForgeRunner {
+  id                    String               @id @default(uuid())
+  name                  String               @unique
+  operatingSystem       ForgeOperatingSystem
+  architecture          String
+  supportedPlatforms    ForgePlatform[]
+  capabilities          Json
+  status                ForgeRunnerStatus    @default(Offline)
+  tokenHash             String?
+  tokenHint             String?
+  lastHeartbeatAtUtc    DateTime?
+  maximumConcurrentJobs Int                  @default(1)
+  currentJobCount       Int                  @default(0)
+  version               String?
+  createdAt             DateTime             @default(now())
+  updatedAt             DateTime             @updatedAt
+  platformBuilds        ForgePlatformBuild[]
+}
+
+model ForgeAuditLog {
+  id          String   @id @default(uuid())
+  actorUserId String?
+  action      String
+  entityType  String
+  entityId    String?
+  metadata    Json?
+  createdAt   DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([entityType, entityId])
+}
+
+// ── Engineering Catalog ───────────────────────────────────────────────────────
+
+enum RepositoryProviderKind {
+  gitlab
+  github
+  azure_devops
+  other
+}
+
+enum RepositoryLifecycleState {
+  proposed
+  preparing
+  active
+  maintenance
+  deprecated
+  archived
+  unavailable
+}
+
+enum RepositoryConnectivityState {
+  unknown
+  reachable
+  authentication_failed
+  permission_denied
+  not_found
+  network_error
+  tls_error
+  provider_error
+}
+
+enum RepositoryFreshnessState {
+  current
+  stale
+  never_synchronized
+  partially_synchronized
+  synchronization_failed
+}
+
+enum SignalState {
+  unknown
+  not_applicable
+  declared
+  detected
+  passing
+  failing
+  stale
+  inherited
+  manually_overridden
+  missing
+  configured
+}
+
+enum BranchClassification {
+  main
+  development
+  feature
+  release
+  hotfix
+  bank_specific
+  unknown
+}
+
+enum PipelineStatus {
+  created
+  waiting
+  preparing
+  pending
+  running
+  success
+  failed
+  canceled
+  skipped
+  manual
+  scheduled
+  blocked
+  unknown
+}
+
+enum JobClassification {
+  build
+  unit_test
+  integration_test
+  end_to_end_test
+  static_analysis
+  lint
+  security_scan
+  dependency_scan
+  secret_scan
+  package
+  deploy
+  release
+  unknown
+}
+
+enum ComponentDependencyKind {
+  depends_on
+  provides_api_to
+  shared_core_for
+  deployed_with
+  replaces
+  supersedes
+  bank_variant_of
+}
+
+enum BackgroundJobStatus {
+  pending
+  leased
+  running
+  completed
+  failed
+  dead_letter
+  cancelled
+}
+
+enum ImportJobStatus {
+  uploaded
+  parsing
+  validating
+  preview
+  committing
+  completed
+  failed
+  rolled_back
+}
+
+model CatalogTeam {
+  id              String                  @id @default(uuid())
+  slug            String                  @unique
+  name            String
+  description     String?                 @db.Text
+  devTeamSlug     DevTeam?                @map("dev_team_slug")
+  isActive        Boolean                 @default(true)
+  archivedAt      DateTime?               @map("archived_at")
+  createdAt       DateTime                @default(now())
+  updatedAt       DateTime                @updatedAt
+  systems         CatalogSystem[]
+  assignments     CatalogTeamAssignment[]
+  repositories    Repository[]
+  engineeringGaps EngineeringGap[]
+}
+
+model CatalogTeamAssignment {
+  id          String      @id @default(uuid())
+  teamId      String      @map("team_id")
+  team        CatalogTeam @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  userId      String?     @map("user_id")
+  user        User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+  developerId String?     @map("developer_id")
+  developer   Developer?  @relation(fields: [developerId], references: [id], onDelete: SetNull)
+  role        String      @default("member")
+  createdAt   DateTime    @default(now())
+
+  @@index([teamId])
+  @@index([userId])
+  @@index([developerId])
+}
+
+model ApplicationType {
+  id           String               @id @default(uuid())
+  slug         String               @unique
+  name         String
+  description  String?              @db.Text
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+  applications CatalogApplication[]
+}
+
+model CatalogSystem {
+  id           String               @id @default(uuid())
+  teamId       String               @map("team_id")
+  team         CatalogTeam          @relation(fields: [teamId], references: [id])
+  slug         String
+  name         String
+  description  String?              @db.Text
+  archivedAt   DateTime?            @map("archived_at")
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+  applications CatalogApplication[]
+
+  @@unique([teamId, slug])
+  @@index([teamId])
+}
+
+model CatalogApplication {
+  id                 String                   @id @default(uuid())
+  systemId           String                   @map("system_id")
+  system             CatalogSystem            @relation(fields: [systemId], references: [id])
+  applicationTypeId  String?                  @map("application_type_id")
+  applicationType    ApplicationType?         @relation(fields: [applicationTypeId], references: [id], onDelete: SetNull)
+  slug               String
+  name               String
+  description        String?                  @db.Text
+  archivedAt         DateTime?                @map("archived_at")
+  createdAt          DateTime                 @default(now())
+  updatedAt          DateTime                 @updatedAt
+  components         Component[]
+  forgeApplications  ForgeApplication[]
+  bankLinks          BankApplicationLink[]
+  sharedCoreAsSource SharedCoreRelationship[] @relation("SharedCoreSource")
+  sharedCoreAsTarget SharedCoreRelationship[] @relation("SharedCoreTarget")
+  environments       Environment[]
+
+  @@unique([systemId, slug])
+  @@index([systemId])
+}
+
+model ComponentType {
+  id                String            @id @default(uuid())
+  slug              String            @unique
+  name              String
+  description       String?           @db.Text
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  components        Component[]
+  scorecardPolicies ScorecardPolicy[]
+}
+
+model Component {
+  id               String                @id @default(uuid())
+  applicationId    String                @map("application_id")
+  application      CatalogApplication    @relation(fields: [applicationId], references: [id])
+  componentTypeId  String?               @map("component_type_id")
+  componentType    ComponentType?        @relation(fields: [componentTypeId], references: [id], onDelete: SetNull)
+  slug             String
+  name             String
+  description      String?               @db.Text
+  criticality      String?
+  archivedAt       DateTime?             @map("archived_at")
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+  repository       Repository?
+  dependenciesFrom ComponentDependency[] @relation("DepFrom")
+  dependenciesTo   ComponentDependency[] @relation("DepTo")
+
+  @@unique([applicationId, slug])
+  @@index([applicationId])
+}
+
+model ComponentDependency {
+  id              String                  @id @default(uuid())
+  fromComponentId String                  @map("from_component_id")
+  fromComponent   Component               @relation("DepFrom", fields: [fromComponentId], references: [id], onDelete: Cascade)
+  toComponentId   String                  @map("to_component_id")
+  toComponent     Component               @relation("DepTo", fields: [toComponentId], references: [id], onDelete: Cascade)
+  kind            ComponentDependencyKind
+  notes           String?                 @db.Text
+  createdAt       DateTime                @default(now())
+
+  @@unique([fromComponentId, toComponentId, kind])
+}
+
+model RepositoryConnection {
+  id                String                    @id @default(uuid())
+  slug              String                    @unique
+  name              String
+  providerKind      RepositoryProviderKind    @map("provider_kind")
+  baseUrl           String                    @map("base_url")
+  apiUrl            String                    @map("api_url")
+  encryptedToken    String?                   @map("encrypted_token") @db.Text
+  tlsCaFile         String?                   @map("tls_ca_file")
+  webhookSecret     String?                   @map("webhook_secret")
+  syncEnabled       Boolean                   @default(true) @map("sync_enabled")
+  isActive          Boolean                   @default(true) @map("is_active")
+  lastVerifiedAt    DateTime?                 @map("last_verified_at")
+  createdAt         DateTime                  @default(now())
+  updatedAt         DateTime                  @updatedAt
+  repositories      Repository[]
+  originHistory     RepositoryOriginHistory[]
+  syncRuns          SyncRun[]
+  webhookDeliveries WebhookDelivery[]
+}
+
+model Repository {
+  id                          String                      @id @default(uuid())
+  connectionId                String                      @map("connection_id")
+  connection                  RepositoryConnection        @relation(fields: [connectionId], references: [id])
+  teamId                      String?                     @map("team_id")
+  team                        CatalogTeam?                @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  componentId                 String?                     @unique @map("component_id")
+  component                   Component?                  @relation(fields: [componentId], references: [id], onDelete: SetNull)
+  name                        String
+  canonicalUrl                String                      @map("canonical_url")
+  normalizedProjectPath       String                      @map("normalized_project_path")
+  providerProjectId           String?                     @map("provider_project_id")
+  defaultBranch               String?                     @map("default_branch")
+  reportedMainBranch          String?                     @map("reported_main_branch")
+  reportedDevelopmentBranch   String?                     @map("reported_development_branch")
+  reportedPipelineState       String?                     @map("reported_pipeline_state")
+  reportedUnitTestState       SignalState?                @map("reported_unit_test_state")
+  reportedStaticAnalysisState SignalState?                @map("reported_static_analysis_state")
+  reportedSource              String?                     @map("reported_source")
+  reportedAt                  DateTime?                   @map("reported_at")
+  lifecycleState              RepositoryLifecycleState    @default(proposed) @map("lifecycle_state")
+  connectivityState           RepositoryConnectivityState @default(unknown) @map("connectivity_state")
+  freshnessState              RepositoryFreshnessState    @default(never_synchronized) @map("freshness_state")
+  technicalOwnerId            String?                     @map("technical_owner_id")
+  technicalOwner              Developer?                  @relation("RepoTechnicalOwner", fields: [technicalOwnerId], references: [id], onDelete: SetNull)
+  businessOwnerNote           String?                     @map("business_owner_note") @db.Text
+  criticality                 String?
+  productionImpact            String?                     @map("production_impact")
+  notes                       String?                     @db.Text
+  archivedAt                  DateTime?                   @map("archived_at")
+  createdAt                   DateTime                    @default(now())
+  updatedAt                   DateTime                    @updatedAt
+  originHistory               RepositoryOriginHistory[]
+  branches                    RepositoryBranch[]
+  commits                     RepositoryCommitSnapshot[]
+  mergeRequests               MergeRequestSnapshot[]
+  pipelineRuns                PipelineRun[]
+  checkResults                RepositoryCheckResult[]
+  scorecardSnapshots          ScorecardSnapshot[]
+  signalOverrides             SignalOverride[]
+  forgeApplications           ForgeApplication[]
+  syncRuns                    SyncRun[]
+  importRows                  RepositoryImportRow[]
+  deployments                 Deployment[]
+  externalLinks               ExternalLink[]
+  gaps                        EngineeringGap[]
+  alerts                      CatalogAlert[]
+
+  @@unique([connectionId, normalizedProjectPath])
+  @@index([teamId])
+  @@index([lifecycleState])
+  @@index([freshnessState])
+}
+
+model RepositoryOriginHistory {
+  id                    String                 @id @default(uuid())
+  repositoryId          String                 @map("repository_id")
+  repository            Repository             @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+  connectionId          String                 @map("connection_id")
+  connection            RepositoryConnection   @relation(fields: [connectionId], references: [id])
+  canonicalUrl          String                 @map("canonical_url")
+  normalizedProjectPath String                 @map("normalized_project_path")
+  providerProjectId     String?                @map("provider_project_id")
+  providerKind          RepositoryProviderKind @map("provider_kind")
+  defaultBranch         String?                @map("default_branch")
+  startedAt             DateTime               @map("started_at")
+  endedAt               DateTime               @map("ended_at")
+  migratedByUserId      String?                @map("migrated_by_user_id")
+  migratedBy            User?                  @relation(fields: [migratedByUserId], references: [id], onDelete: SetNull)
+  reason                String?                @db.Text
+  createdAt             DateTime               @default(now())
+
+  @@index([repositoryId])
+}
+
+model RepositoryBranch {
+  id                 String               @id @default(uuid())
+  repositoryId       String               @map("repository_id")
+  repository         Repository           @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+  originHistoryId    String?              @map("origin_history_id")
+  name               String
+  isDefault          Boolean              @default(false) @map("is_default")
+  isProtected        Boolean              @default(false) @map("is_protected")
+  classification     BranchClassification @default(unknown)
+  latestCommitSha    String?              @map("latest_commit_sha")
+  latestCommitTitle  String?              @map("latest_commit_title")
+  latestCommitAuthor String?              @map("latest_commit_author")
+  latestCommitAt     DateTime?            @map("latest_commit_at")
+  syncedAt           DateTime             @default(now()) @map("synced_at")
+
+  @@unique([repositoryId, name])
+  @@index([repositoryId])
+}
+
+model RepositoryCommitSnapshot {
+  id           String     @id @default(uuid())
+  repositoryId String     @map("repository_id")
+  repository   Repository @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+  sha          String
+  title        String
+  authorName   String?    @map("author_name")
+  authorEmail  String?    @map("author_email")
+  committedAt  DateTime   @map("committed_at")
+  branchName   String?    @map("branch_name")
+  webUrl       String?    @map("web_url")
+  syncedAt     DateTime   @default(now()) @map("synced_at")
+
+  @@unique([repositoryId, sha])
+  @@index([repositoryId, committedAt])
+}
+
+model MergeRequestSnapshot {
+  id           String     @id @default(uuid())
+  repositoryId String     @map("repository_id")
+  repository   Repository @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+  providerMrId String     @map("provider_mr_id")
+  title        String
+  state        String
+  sourceBranch String     @map("source_branch")
+  targetBranch String     @map("target_branch")
+  authorName   String?    @map("author_name")
+  isDraft      Boolean    @default(false) @map("is_draft")
+  webUrl       String?    @map("web_url")
+  createdAt    DateTime   @map("created_at")
+  updatedAt    DateTime   @map("updated_at")
+  syncedAt     DateTime   @default(now()) @map("synced_at")
+
+  @@unique([repositoryId, providerMrId])
+  @@index([repositoryId])
+}
+
+model PipelineRun {
+  id              String         @id @default(uuid())
+  repositoryId    String         @map("repository_id")
+  repository      Repository     @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+  providerRunId   String         @map("provider_run_id")
+  status          PipelineStatus @default(unknown)
+  ref             String?
+  sha             String?
+  webUrl          String?        @map("web_url")
+  source          String?
+  durationSeconds Int?           @map("duration_seconds")
+  startedAt       DateTime?      @map("started_at")
+  finishedAt      DateTime?      @map("finished_at")
+  syncedAt        DateTime       @default(now()) @map("synced_at")
+  jobs            PipelineJob[]
+
+  @@unique([repositoryId, providerRunId])
+  @@index([repositoryId, finishedAt])
+}
+
+model PipelineJob {
+  id              String            @id @default(uuid())
+  pipelineRunId   String            @map("pipeline_run_id")
+  pipelineRun     PipelineRun       @relation(fields: [pipelineRunId], references: [id], onDelete: Cascade)
+  providerJobId   String            @map("provider_job_id")
+  name            String
+  stage           String?
+  status          PipelineStatus    @default(unknown)
+  classification  JobClassification @default(unknown)
+  durationSeconds Int?              @map("duration_seconds")
+  coveragePercent Float?            @map("coverage_percent")
+  webUrl          String?           @map("web_url")
+  allowFailure    Boolean           @default(false) @map("allow_failure")
+  syncedAt        DateTime          @default(now()) @map("synced_at")
+
+  @@unique([pipelineRunId, providerJobId])
+}
+
+model RepositoryCheckDefinition {
+  id          String                  @id @default(uuid())
+  slug        String                  @unique
+  name        String
+  category    String
+  description String?                 @db.Text
+  isRequired  Boolean                 @default(false) @map("is_required")
+  createdAt   DateTime                @default(now())
+  updatedAt   DateTime                @updatedAt
+  results     RepositoryCheckResult[]
+  policyLinks ScorecardPolicyCheck[]
+}
+
+model RepositoryCheckResult {
+  id                String                    @id @default(uuid())
+  repositoryId      String                    @map("repository_id")
+  repository        Repository                @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+  checkDefinitionId String                    @map("check_definition_id")
+  checkDefinition   RepositoryCheckDefinition @relation(fields: [checkDefinitionId], references: [id])
+  status            String
+  value             String?
+  evidenceSource    String?                   @map("evidence_source")
+  evidenceUrl       String?                   @map("evidence_url")
+  sourceType        String?                   @map("source_type")
+  confidence        Float?
+  detectedAt        DateTime?                 @map("detected_at")
+  effectiveAt       DateTime?                 @map("effective_at")
+  staleAfter        DateTime?                 @map("stale_after")
+  notes             String?                   @db.Text
+  syncedAt          DateTime                  @default(now()) @map("synced_at")
+
+  @@index([repositoryId])
+}
+
+model ScorecardPolicy {
+  id              String                 @id @default(uuid())
+  slug            String                 @unique
+  name            String
+  componentTypeId String?                @map("component_type_id")
+  componentType   ComponentType?         @relation(fields: [componentTypeId], references: [id], onDelete: SetNull)
+  weights         Json
+  enforceOnBuild  Boolean                @default(false) @map("enforce_on_build")
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+  checks          ScorecardPolicyCheck[]
+  snapshots       ScorecardSnapshot[]
+}
+
+model ScorecardPolicyCheck {
+  id                String                    @id @default(uuid())
+  policyId          String                    @map("policy_id")
+  policy            ScorecardPolicy           @relation(fields: [policyId], references: [id], onDelete: Cascade)
+  checkDefinitionId String                    @map("check_definition_id")
+  checkDefinition   RepositoryCheckDefinition @relation(fields: [checkDefinitionId], references: [id])
+  weight            Float                     @default(1)
+  isRequired        Boolean                   @default(false) @map("is_required")
+
+  @@unique([policyId, checkDefinitionId])
+}
+
+model ScorecardSnapshot {
+  id           String           @id @default(uuid())
+  repositoryId String           @map("repository_id")
+  repository   Repository       @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+  policyId     String?          @map("policy_id")
+  policy       ScorecardPolicy? @relation(fields: [policyId], references: [id], onDelete: SetNull)
+  scores       Json
+  overallScore Float?           @map("overall_score")
+  capturedAt   DateTime         @default(now()) @map("captured_at")
+
+  @@index([repositoryId, capturedAt])
+}
+
+model SignalOverride {
+  id           String     @id @default(uuid())
+  repositoryId String     @map("repository_id")
+  repository   Repository @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+  signalKey    String     @map("signal_key")
+  value        String
+  reason       String     @db.Text
+  ownerUserId  String     @map("owner_user_id")
+  owner        User       @relation(fields: [ownerUserId], references: [id])
+  expiresAt    DateTime?  @map("expires_at")
+  createdAt    DateTime   @default(now())
+
+  @@index([repositoryId])
+}
+
+model Environment {
+  id            String             @id @default(uuid())
+  applicationId String             @map("application_id")
+  application   CatalogApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  slug          String
+  name          String
+  kind          String
+  baseUrl       String?            @map("base_url")
+  monitoringUrl String?            @map("monitoring_url")
+  loggingUrl    String?            @map("logging_url")
+  runbookUrl    String?            @map("runbook_url")
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+  deployments   Deployment[]
+
+  @@unique([applicationId, slug])
+}
+
+model Deployment {
+  id            String       @id @default(uuid())
+  repositoryId  String       @map("repository_id")
+  repository    Repository   @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+  environmentId String?      @map("environment_id")
+  environment   Environment? @relation(fields: [environmentId], references: [id], onDelete: SetNull)
+  commitSha     String?      @map("commit_sha")
+  status        String
+  deployedAt    DateTime?    @map("deployed_at")
+  webUrl        String?      @map("web_url")
+  createdAt     DateTime     @default(now())
+
+  @@index([repositoryId])
+}
+
+model ExternalLink {
+  id           String      @id @default(uuid())
+  repositoryId String?     @map("repository_id")
+  repository   Repository? @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+  label        String
+  url          String
+  kind         String
+  createdAt    DateTime    @default(now())
+
+  @@index([repositoryId])
+}
+
+model BankApplicationLink {
+  id            String             @id @default(uuid())
+  applicationId String             @map("application_id")
+  application   CatalogApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  forgeBankId   String?            @map("forge_bank_id")
+  forgeBank     ForgeBank?         @relation(fields: [forgeBankId], references: [id], onDelete: SetNull)
+  bankCode      String?            @map("bank_code")
+  bankName      String?            @map("bank_name")
+  createdAt     DateTime           @default(now())
+
+  @@index([applicationId])
+}
+
+model SharedCoreRelationship {
+  id                  String             @id @default(uuid())
+  sourceApplicationId String             @map("source_application_id")
+  sourceApplication   CatalogApplication @relation("SharedCoreSource", fields: [sourceApplicationId], references: [id], onDelete: Cascade)
+  targetApplicationId String             @map("target_application_id")
+  targetApplication   CatalogApplication @relation("SharedCoreTarget", fields: [targetApplicationId], references: [id], onDelete: Cascade)
+  inheritedChecks     Json?              @map("inherited_checks")
+  notes               String?            @db.Text
+  createdAt           DateTime           @default(now())
+
+  @@unique([sourceApplicationId, targetApplicationId])
+}
+
+model RepositoryImportJob {
+  id           String                @id @default(uuid())
+  fileName     String                @map("file_name")
+  status       ImportJobStatus       @default(uploaded)
+  rowCount     Int                   @default(0) @map("row_count")
+  createdById  String                @map("created_by_id")
+  createdBy    User                  @relation(fields: [createdById], references: [id])
+  completedAt  DateTime?             @map("completed_at")
+  errorMessage String?               @map("error_message") @db.Text
+  createdAt    DateTime              @default(now())
+  updatedAt    DateTime              @updatedAt
+  rows         RepositoryImportRow[]
+  conflicts    ImportConflict[]
+}
+
+model RepositoryImportRow {
+  id           String              @id @default(uuid())
+  importJobId  String              @map("import_job_id")
+  importJob    RepositoryImportJob @relation(fields: [importJobId], references: [id], onDelete: Cascade)
+  rowNumber    Int                 @map("row_number")
+  rawPayload   Json                @map("raw_payload")
+  matchStatus  String              @default("pending") @map("match_status")
+  repositoryId String?             @map("repository_id")
+  repository   Repository?         @relation(fields: [repositoryId], references: [id], onDelete: SetNull)
+  createdAt    DateTime            @default(now())
+
+  @@index([importJobId])
+}
+
+model ImportConflict {
+  id          String              @id @default(uuid())
+  importJobId String              @map("import_job_id")
+  importJob   RepositoryImportJob @relation(fields: [importJobId], references: [id], onDelete: Cascade)
+  rowNumber   Int                 @map("row_number")
+  field       String
+  reported    String?
+  detected    String?
+  resolution  String?
+  createdAt   DateTime            @default(now())
+
+  @@index([importJobId])
+}
+
+model SyncRun {
+  id           String                @id @default(uuid())
+  repositoryId String?               @map("repository_id")
+  repository   Repository?           @relation(fields: [repositoryId], references: [id], onDelete: SetNull)
+  connectionId String?               @map("connection_id")
+  connection   RepositoryConnection? @relation(fields: [connectionId], references: [id], onDelete: SetNull)
+  kind         String
+  status       String
+  startedAt    DateTime              @default(now()) @map("started_at")
+  finishedAt   DateTime?             @map("finished_at")
+  itemsSynced  Int                   @default(0) @map("items_synced")
+  errors       SyncError[]
+
+  @@index([repositoryId])
+  @@index([startedAt])
+}
+
+model SyncError {
+  id        String   @id @default(uuid())
+  syncRunId String   @map("sync_run_id")
+  syncRun   SyncRun  @relation(fields: [syncRunId], references: [id], onDelete: Cascade)
+  code      String
+  message   String   @db.Text
+  createdAt DateTime @default(now())
+
+  @@index([syncRunId])
+}
+
+model WebhookDelivery {
+  id             String               @id @default(uuid())
+  connectionId   String               @map("connection_id")
+  connection     RepositoryConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  deliveryId     String               @map("delivery_id")
+  eventType      String               @map("event_type")
+  status         String
+  processedAt    DateTime?            @map("processed_at")
+  idempotencyKey String               @unique @map("idempotency_key")
+  createdAt      DateTime             @default(now())
+
+  @@index([connectionId])
+}
+
+model BackgroundJob {
+  id             String              @id @default(uuid())
+  kind           String
+  status         BackgroundJobStatus @default(pending)
+  payload        Json
+  idempotencyKey String?             @unique @map("idempotency_key")
+  leaseOwner     String?             @map("lease_owner")
+  leaseExpiresAt DateTime?           @map("lease_expires_at")
+  attempts       Int                 @default(0)
+  maxAttempts    Int                 @default(5) @map("max_attempts")
+  lastError      String?             @map("last_error") @db.Text
+  scheduledFor   DateTime            @default(now()) @map("scheduled_for")
+  startedAt      DateTime?           @map("started_at")
+  completedAt    DateTime?           @map("completed_at")
+  createdAt      DateTime            @default(now())
+
+  @@index([status, scheduledFor])
+}
+
+model AuditEvent {
+  id          String   @id @default(uuid())
+  actorUserId String?  @map("actor_user_id")
+  actor       User?    @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+  action      String
+  entityType  String   @map("entity_type")
+  entityId    String?  @map("entity_id")
+  metadata    Json?
+  createdAt   DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([createdAt])
+}
+
+model EngineeringGap {
+  id             String        @id @default(uuid())
+  repositoryId   String        @map("repository_id")
+  repository     Repository    @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+  checkSlug      String        @map("check_slug")
+  title          String
+  priority       String        @default("medium")
+  status         String        @default("open")
+  ownerTeamId    String?       @map("owner_team_id")
+  ownerTeam      CatalogTeam?  @relation(fields: [ownerTeamId], references: [id], onDelete: SetNull)
+  triageItemId   String?       @map("triage_item_id")
+  triageItem     TriageItem?   @relation(fields: [triageItemId], references: [id], onDelete: SetNull)
+  planningItemId String?       @map("planning_item_id")
+  planningItem   PlanningItem? @relation(fields: [planningItemId], references: [id], onDelete: SetNull)
+  targetDate     DateTime?     @map("target_date")
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@unique([repositoryId, checkSlug, status])
+  @@index([repositoryId])
+}
+
+model CatalogAlert {
+  id           String      @id @default(uuid())
+  repositoryId String?     @map("repository_id")
+  repository   Repository? @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+  alertType    String      @map("alert_type")
+  fingerprint  String
+  message      String      @db.Text
+  severity     String      @default("warning")
+  isActive     Boolean     @default(true) @map("is_active")
+  resolvedAt   DateTime?   @map("resolved_at")
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  @@unique([fingerprint])
+  @@index([isActive])
+}
+
+// --- External work items (Microsoft To Do + ClickUp) ---
+
+enum ExternalProvider {
+  microsoft_todo
+  clickup
+}
+
+enum ExternalSyncState {
+  idle
+  syncing
+  error
+  stale
+}
+
+model ExternalWorkItem {
+  id                 String            @id @default(uuid())
+  provider           ExternalProvider
+  /// ClickUpConnection.id or "m365" for Microsoft To Do
+  connectionKey      String            @map("connection_key")
+  workspaceId        String?           @map("workspace_id")
+  spaceId            String?           @map("space_id")
+  folderId           String?           @map("folder_id")
+  listId             String?           @map("list_id")
+  externalId         String            @map("external_id")
+  externalParentId   String?           @map("external_parent_id")
+  externalUrl        String?           @map("external_url") @db.Text
+  title              String
+  externalStatus     String?           @map("external_status")
+  externalPriority   String?           @map("external_priority")
+  externalUpdatedAt  DateTime?         @map("external_updated_at")
+  lastSyncedAt       DateTime?         @map("last_synced_at")
+  syncState          ExternalSyncState @default(idle) @map("sync_state")
+  rawMetadata        Json?             @map("raw_metadata")
+  triageItemId       String?           @map("triage_item_id")
+  triageItem         TriageItem?       @relation(fields: [triageItemId], references: [id], onDelete: SetNull)
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+
+  @@unique([provider, connectionKey, externalId])
+  @@index([triageItemId])
+  @@index([provider, listId])
+  @@index([lastSyncedAt])
+}
+
+model ClickUpConnection {
+  id                String   @id @default(uuid())
+  name              String   @default("default")
+  workspaceId       String?  @map("workspace_id")
+  workspaceName     String?  @map("workspace_name")
+  encryptedToken    String   @map("encrypted_token") @db.Text
+  tokenHint         String?  @map("token_hint") @db.VarChar(16)
+  autoSyncEnabled   Boolean  @default(true) @map("auto_sync_enabled")
+  lastSyncAt        DateTime? @map("last_sync_at")
+  lastSyncError     String?  @map("last_sync_error") @db.Text
+  webhookId         String?  @map("webhook_id")
+  webhookSecret     String?  @map("webhook_secret") @db.Text
+  createdById       String?  @map("created_by_id")
+  createdBy         User?    @relation("ClickUpConnectionCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedById       String?  @map("updated_by_id")
+  updatedBy         User?    @relation("ClickUpConnectionUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  listMappings      ClickUpListMapping[]
+  statusMappings    ClickUpStatusMapping[]
+  priorityMappings  ClickUpPriorityMapping[]
+  userMappings      ClickUpUserMapping[]
+  syncRuns          ExternalSyncRun[]
+  webhookDeliveries ClickUpWebhookDelivery[]
+
+  @@index([workspaceId])
+}
+
+model ClickUpListMapping {
+  id                    String   @id @default(uuid())
+  connectionId          String   @map("connection_id")
+  connection            ClickUpConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  workspaceId           String   @map("workspace_id")
+  spaceId               String   @map("space_id")
+  spaceName             String?  @map("space_name")
+  folderId              String?  @map("folder_id")
+  folderName            String?  @map("folder_name")
+  listId                String   @map("list_id")
+  listName              String?  @map("list_name")
+  enabled               Boolean  @default(true)
+  importCategory        TriageCategory @default(other) @map("import_category")
+  defaultAssigneeId     String?  @map("default_assignee_id")
+  syncStatusToTriage    Boolean  @default(true) @map("sync_status_to_triage")
+  syncDueToTriage       Boolean  @default(true) @map("sync_due_to_triage")
+  lastSyncAt            DateTime? @map("last_sync_at")
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@unique([connectionId, listId])
+  @@index([connectionId, enabled])
+}
+
+model ClickUpStatusMapping {
+  id             String       @id @default(uuid())
+  connectionId   String       @map("connection_id")
+  connection     ClickUpConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  clickUpStatus  String       @map("clickup_status")
+  triageStatus   TriageStatus @map("triage_status")
+  createdAt      DateTime     @default(now())
+
+  @@unique([connectionId, clickUpStatus])
+}
+
+model ClickUpPriorityMapping {
+  id               String   @id @default(uuid())
+  connectionId     String   @map("connection_id")
+  connection       ClickUpConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  clickUpPriority  String   @map("clickup_priority")
+  triageCategory   TriageCategory? @map("triage_category")
+  escalated        Boolean  @default(false)
+  createdAt        DateTime @default(now())
+
+  @@unique([connectionId, clickUpPriority])
+}
+
+model ClickUpUserMapping {
+  id               String    @id @default(uuid())
+  connectionId     String    @map("connection_id")
+  connection       ClickUpConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  clickUpUserId    String    @map("clickup_user_id")
+  clickUpUsername  String?   @map("clickup_username")
+  developerId      String    @map("developer_id")
+  developer        Developer @relation(fields: [developerId], references: [id], onDelete: Cascade)
+  createdAt        DateTime  @default(now())
+
+  @@unique([connectionId, clickUpUserId])
+  @@index([developerId])
+}
+
+model ExternalSyncRun {
+  id             String   @id @default(uuid())
+  provider       ExternalProvider
+  connectionId   String?  @map("connection_id")
+  connection     ClickUpConnection? @relation(fields: [connectionId], references: [id], onDelete: SetNull)
+  kind           String
+  status         String   @default("running")
+  startedAt      DateTime @default(now()) @map("started_at")
+  finishedAt     DateTime? @map("finished_at")
+  itemsSeen      Int      @default(0) @map("items_seen")
+  itemsUpserted  Int      @default(0) @map("items_upserted")
+  itemsLinked    Int      @default(0) @map("items_linked")
+  errorMessage   String?  @map("error_message") @db.Text
+  errors         ExternalSyncError[]
+
+  @@index([provider, startedAt])
+  @@index([connectionId])
+}
+
+model ExternalSyncError {
+  id        String          @id @default(uuid())
+  syncRunId String          @map("sync_run_id")
+  syncRun   ExternalSyncRun @relation(fields: [syncRunId], references: [id], onDelete: Cascade)
+  code      String
+  message   String          @db.Text
+  externalId String?        @map("external_id")
+  createdAt DateTime        @default(now())
+
+  @@index([syncRunId])
+}
+
+model ClickUpWebhookDelivery {
+  id             String            @id @default(uuid())
+  connectionId   String            @map("connection_id")
+  connection     ClickUpConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  deliveryId     String            @map("delivery_id")
+  eventType      String            @map("event_type")
+  status         String
+  payload        Json?
+  processedAt    DateTime?         @map("processed_at")
+  idempotencyKey String            @unique @map("idempotency_key")
+  createdAt      DateTime          @default(now())
+
+  @@index([connectionId])
+}
+
+/// Settings for Microsoft To Do background sync (separate cron from ClickUp).
+model MicrosoftTodoSyncSettings {
+  id              String   @id @default("default")
+  autoSyncEnabled Boolean  @default(false) @map("auto_sync_enabled")
+  /// JSON array of Graph list ids to sync when a Graph token is available via job payload / env.
+  connectedListIds Json     @default("[]") @map("connected_list_ids")
+  lastSyncAt      DateTime? @map("last_sync_at")
+  lastSyncError   String?  @map("last_sync_error") @db.Text
+  updatedAt       DateTime @updatedAt
+}

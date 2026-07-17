@@ -3,9 +3,9 @@ import type { ReactNode } from "react";
 import { useAppTheme } from "./theme/AppThemeContext";
 
 export function ThemedMantineProvider({ children }: { children: ReactNode }) {
-  const { mantineTheme } = useAppTheme();
+  const { mantineTheme, colorScheme } = useAppTheme();
   return (
-    <MantineProvider theme={mantineTheme} defaultColorScheme="light">
+    <MantineProvider theme={mantineTheme} forceColorScheme={colorScheme}>
       {children}
     </MantineProvider>
   );

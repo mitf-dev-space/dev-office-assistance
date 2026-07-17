@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
+import { Table, Text } from "@mantine/core";
 import { InteractionRequiredAuthError, type AccountInfo } from "@azure/msal-browser";
 import { MsalProvider, useMsal } from "@azure/msal-react";
 import { useApi } from "../useApi";
@@ -9,6 +10,7 @@ import { m365GraphScopes, isM365Configured } from "../integrations/msalM365Confi
 import { getM365Pca } from "../integrations/m365PublicClient";
 import { PageHeader } from "../components/PageHeader";
 import { CardPlaceholderSkeleton, DataTableSkeleton, SingleFieldSkeleton } from "../components/skeletons/AppSkeletons";
+import { AppDataTable } from "../components/ui/AppDataTable";
 import { MsalInitializer } from "../integrations/MsalInitializer";
 
 type TaskList = { id: string; displayName: string };
@@ -232,59 +234,31 @@ function TodoAppContent() {
               )}
             </div>
             {tasksQuery.isLoading && (
-              <div style={{ overflowX: "auto" }}>
-                <DataTableSkeleton
-                  columns={3}
-                  columnLabels={["Title", "Status", "Due"]}
-                  tableLabel="Loading tasks"
-                />
-              </div>
+              <DataTableSkeleton
+                embedded
+                columns={3}
+                columnLabels={["Title", "Status", "Due"]}
+                tableLabel="Loading tasks"
+              />
             )}
             {tasksQuery.isError && <p role="alert">Could not load tasks for this list.</p>}
             {tasksQuery.isSuccess && (
-              <div style={{ overflowX: "auto" }}>
-                <table
-                  className="todo-task-table"
-                  style={{
-                    width: "100%",
-                    borderCollapse: "collapse",
-                    fontSize: "0.95rem",
-                  }}
-                >
-                  <caption className="muted" style={{ textAlign: "left", marginBottom: "0.5rem" }}>
-                    {tasks.length} task{tasks.length === 1 ? "" : "s"}
-                  </caption>
-                  <thead>
-                    <tr style={{ borderBottom: "1px solid var(--mantine-color-default-border, #eee)" }}>
-                      <th
-                        scope="col"
-                        style={{ textAlign: "left", padding: "0.5rem 0.35rem" }}
-                      >
-                        Title
-                      </th>
-                      <th
-                        scope="col"
-                        style={{ textAlign: "left", padding: "0.5rem 0.35rem" }}
-                      >
-                        Status
-                      </th>
-                      <th
-                        scope="col"
-                        style={{ textAlign: "left", padding: "0.5rem 0.35rem" }}
-                      >
-                        Due
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
+              <>
+                <Text size="sm" c="dimmed" mb="xs">
+                  {tasks.length} task{tasks.length === 1 ? "" : "s"}
+                </Text>
+                <AppDataTable embedded aria-label="Microsoft To Do tasks">
+                  <Table.Thead>
+                    <Table.Tr>
+                      <Table.Th>Title</Table.Th>
+                      <Table.Th>Status</Table.Th>
+                      <Table.Th>Due</Table.Th>
+                    </Table.Tr>
+                  </Table.Thead>
+                  <Table.Tbody>
                     {tasks.map((t) => (
-                      <tr
-                        key={t.id}
-                        style={{
-                          borderBottom: "1px solid var(--mantine-color-default-border, rgba(0,0,0,0.06))",
-                        }}
-                      >
-                        <td style={{ padding: "0.45rem 0.35rem", verticalAlign: "top" }}>
+                      <Table.Tr key={t.id}>
+                        <Table.Td>
                           {t.webUrl ? (
                             <a href={t.webUrl} target="_blank" rel="noreferrer">
                               {t.title}
@@ -297,23 +271,19 @@ function TodoAppContent() {
                               {t.bodyPreview}
                             </div>
                           )}
-                        </td>
-                        <td style={{ padding: "0.45rem 0.35rem", whiteSpace: "nowrap" }}>
-                          {statusLabel(t.status)}
-                        </td>
-                        <td style={{ padding: "0.45rem 0.35rem", whiteSpace: "nowrap" }}>
-                          {formatDue(t.dueDateTime)}
-                        </td>
-                      </tr>
+                        </Table.Td>
+                        <Table.Td style={{ whiteSpace: "nowrap" }}>{statusLabel(t.status)}</Table.Td>
+                        <Table.Td style={{ whiteSpace: "nowrap" }}>{formatDue(t.dueDateTime)}</Table.Td>
+                      </Table.Tr>
                     ))}
-                  </tbody>
-                </table>
+                  </Table.Tbody>
+                </AppDataTable>
                 {tasks.length === 0 && (
                   <p className="muted" style={{ marginTop: "0.75rem" }}>
                     No tasks in this list, or the list is empty in Graph.
                   </p>
                 )}
-              </div>
+              </>
             )}
           </div>
         )}

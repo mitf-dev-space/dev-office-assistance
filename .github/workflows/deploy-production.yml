@@ -1,0 +1,57 @@
+# Optional remote deploy — DISABLED by default (matches OmniTest: prefer manual Paramiko).
+# Enable by setting repository variable HELM_ENABLE_CD=true and configuring environment "production".
+#
+# Required secrets (GitHub Environment "production"):
+#   PRODUCTION_HOST, PRODUCTION_USER, PRODUCTION_SSH_KEY, PRODUCTION_KNOWN_HOSTS
+#   PRODUCTION_DEPLOY_PATH (e.g. /home/masarat-admin/compose-dev-office-assistance)
+
+name: Deploy production (gated)
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: Git SHA or tag already pushed to Docker Hub
+        required: true
+      mode:
+        description: upgrade or full
+        required: true
+        default: upgrade
+        type: choice
+        options: [upgrade, full]
+
+jobs:
+  deploy:
+    if: ${{ vars.HELM_ENABLE_CD == 'true' }}
+    runs-on: ubuntu-latest
+    environment: production
+    concurrency:
+      group: helm-production-deploy
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install deploy deps
+        run: pip install -r scripts/requirements-deploy.txt
+
+      - name: Configure SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.PRODUCTION_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+          echo "${{ secrets.PRODUCTION_SSH_KEY }}" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          printf 'Host helm-prod\n  HostName %s\n  User %s\n  IdentityFile ~/.ssh/id_deploy\n  IdentitiesOnly yes\n' \
+            "${{ secrets.PRODUCTION_HOST }}" "${{ secrets.PRODUCTION_USER }}" > ~/.ssh/config
+
+      - name: Remote deploy via SSH script
+        env:
+          IMAGE_TAG: ${{ inputs.image_tag }}
+          MODE: ${{ inputs.mode }}
+          DEPLOY_PATH: ${{ secrets.PRODUCTION_DEPLOY_PATH }}
+        run: |
+          ssh helm-prod "cd '${DEPLOY_PATH}' && export IMAGE_TAG='${IMAGE_TAG}' && ./scripts/preflight.sh && ./scripts/deploy.sh && ./scripts/verify.sh"

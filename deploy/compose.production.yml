@@ -1,0 +1,135 @@
+# Helm LAN production compose — registry images, no source bind mounts.
+# Server path: ~/compose-dev-office-assistance
+# Usage:
+#   docker compose --env-file .env.production -f compose.production.yml pull
+#   docker compose --env-file .env.production -f compose.production.yml run --rm migrate
+#   docker compose --env-file .env.production -f compose.production.yml up -d --remove-orphans
+#
+# Ports (46xxx block; do not collide with OmniTest 46300/46400):
+#   web 46810 → 80
+#   api 46811 → 4000
+#   postgres: internal only
+
+name: helm
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-office_assistance}
+    volumes:
+      - helm_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    networks:
+      - helm_internal
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+
+  migrate:
+    image: ${REGISTRY_NAMESPACE:-anstwechy}/dev-office-assistance-api:${IMAGE_TAG}
+    pull_policy: ${PULL_POLICY:-always}
+    restart: "no"
+    env_file:
+      - .env.production
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      NODE_ENV: production
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - helm_internal
+    entrypoint: ["npx", "prisma", "migrate", "deploy", "--schema=apps/api/prisma/schema.prisma"]
+    logging: *default-logging
+
+  api:
+    image: ${REGISTRY_NAMESPACE:-anstwechy}/dev-office-assistance-api:${IMAGE_TAG}
+    pull_policy: ${PULL_POLICY:-always}
+    restart: unless-stopped
+    env_file:
+      - .env.production
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      AUTH_JWT_SECRET: ${AUTH_JWT_SECRET}
+      CORS_ORIGIN: ${CORS_ORIGIN}
+      NODE_ENV: production
+      PORT: "4000"
+      UPLOAD_DIR: /app/data/uploads
+      FORGE_ARTIFACTS_ROOT: /app/data/forge-artifacts
+      FORGE_WORKSPACES_ROOT: /app/data/forge-workspaces
+      FORGE_ALLOW_IOS_SIMULATION: "false"
+      ALLOW_LOCALHOST_CORS_IN_PRODUCTION: "false"
+      APP_PUBLIC_URL: ${APP_PUBLIC_URL:-http://10.100.235.21:46810}
+      RATE_LIMIT_MAX: ${RATE_LIMIT_MAX:-200}
+    ports:
+      - "${HELM_API_PORT:-46811}:4000"
+    volumes:
+      - helm_uploads:/app/data/uploads
+      - helm_forge_artifacts:/app/data/forge-artifacts
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:4000/health/ready"]
+      interval: 15s
+      timeout: 5s
+      retries: 8
+      start_period: 45s
+    networks:
+      - helm_internal
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+
+  web:
+    image: ${REGISTRY_NAMESPACE:-anstwechy}/dev-office-assistance-web:${IMAGE_TAG}
+    pull_policy: ${PULL_POLICY:-always}
+    restart: unless-stopped
+    ports:
+      - "${HELM_WEB_PORT:-46810}:80"
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/health/live"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    networks:
+      - helm_internal
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+networks:
+  helm_internal:
+    driver: bridge
+
+volumes:
+  helm_pg_data:
+  helm_uploads:
+  helm_forge_artifacts:

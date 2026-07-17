@@ -1,5 +1,6 @@
 import type { CSSProperties, ReactNode } from "react";
 import { Group, Skeleton, Stack } from "@mantine/core";
+import { AppDataTableSkeleton } from "../ui/AppDataTable";
 
 const busy = (label: string) =>
   ({ role: "status" as const, "aria-busy": true, "aria-label": label } as const);
@@ -65,37 +66,19 @@ export function DataTableSkeleton({
   columns,
   columnLabels,
   rows = 5,
-  className = "data-table-wrap",
+  className,
   tableLabel = "Loading table",
-}: DataTableSkeletonProps) {
+  embedded = false,
+}: DataTableSkeletonProps & { embedded?: boolean }) {
+  void className;
   return (
-    <div className={className} {...busy(tableLabel)}>
-      <table>
-        <thead>
-          <tr>
-            {Array.from({ length: columns }, (_, i) => {
-              const label = columnLabels?.[i];
-              return (
-                <th key={i} scope="col">
-                  {label === undefined ? <Skeleton height={14} width="70%" /> : label}
-                </th>
-              );
-            })}
-          </tr>
-        </thead>
-        <tbody>
-          {Array.from({ length: rows }, (_, r) => (
-            <tr key={r}>
-              {Array.from({ length: columns }, (_, c) => (
-                <td key={c}>
-                  <Skeleton height={16} width={c === 0 ? "85%" : "70%"} />
-                </td>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+    <AppDataTableSkeleton
+      columns={columns}
+      columnLabels={columnLabels}
+      rows={rows}
+      embedded={embedded}
+      tableLabel={tableLabel}
+    />
   );
 }
 
@@ -269,38 +252,13 @@ function TeamOnePanelSkeleton() {
           <Skeleton h={40} />
         </div>
       </div>
-      <div className="tm-table-scroller">
-        <table className="tm-mtable">
-          <thead>
-            <tr>
-              <th className="tm-mtable__c-avatar" scope="col" />
-              <th scope="col">Name</th>
-              <th scope="col">Email</th>
-              <th className="tm-mtable__c-action" scope="col">
-                Action
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {Array.from({ length: 3 }, (_, r) => (
-              <tr key={r}>
-                <td>
-                  <Skeleton height={32} width={32} style={{ borderRadius: "50%" }} />
-                </td>
-                <td>
-                  <Skeleton height={16} w="60%" maw={160} />
-                </td>
-                <td>
-                  <Skeleton height={16} w="80%" maw={200} />
-                </td>
-                <td>
-                  <Skeleton height={32} w={80} maw={80} />
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <AppDataTableSkeleton
+        embedded
+        columns={5}
+        columnLabels={["", "Name", "Role", "Lead", "Action"]}
+        rows={3}
+        tableLabel="Loading team roster"
+      />
     </section>
   );
 }

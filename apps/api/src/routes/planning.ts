@@ -3,6 +3,7 @@ import { z } from "zod";
 import type { Prisma, PlanningStatus } from "@prisma/client";
 import { prisma } from "../db.js";
 import { requireDbUser } from "../userService.js";
+import { parseListQuery, withPageMeta } from "../lib/listQuery.js";
 
 const statusZ = z.enum(["draft", "active", "done", "cancelled"]);
 
@@ -63,23 +64,45 @@ export async function registerPlanningRoutes(app: FastifyInstance) {
     if (!me) return;
 
     const q = request.query as Record<string, string | undefined>;
-    const where: Prisma.PlanningItemWhereInput = {};
+    const pq = parseListQuery(q);
+    const and: Prisma.PlanningItemWhereInput[] = [];
     if (q.status) {
       const s = statusZ.safeParse(q.status);
       if (!s.success) {
         return reply.status(400).send({ error: "invalid_status" });
       }
-      where.status = s.data;
+      and.push({ status: s.data });
     }
     if (q.department) {
-      where.department = q.department;
+      and.push({ department: q.department });
     }
+    if (pq.q) {
+      and.push({
+        OR: [
+          { title: { contains: pq.q, mode: "insensitive" } },
+          { description: { contains: pq.q, mode: "insensitive" } },
+          { department: { contains: pq.q, mode: "insensitive" } },
+          { program: { contains: pq.q, mode: "insensitive" } },
+        ],
+      });
+    }
+    const where: Prisma.PlanningItemWhereInput = and.length ? { AND: and } : {};
 
-    const items = await prisma.planningItem.findMany({
-      where,
-      orderBy: [{ targetDate: "asc" }, { updatedAt: "desc" }],
-    });
-    return { items: items.map((p) => planToDto(p)) };
+    const [items, total] = await Promise.all([
+      prisma.planningItem.findMany({
+        where,
+        skip: pq.skip,
+        take: pq.limit,
+        orderBy: [{ targetDate: "asc" }, { updatedAt: "desc" }],
+      }),
+      prisma.planningItem.count({ where }),
+    ]);
+    return withPageMeta(
+      { items: items.map((p) => planToDto(p)) },
+      pq.page,
+      pq.limit,
+      total,
+    );
   });
 
   app.get("/api/planning/:id", async (request, reply) => {

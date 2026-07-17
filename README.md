@@ -8,6 +8,7 @@ It combines leadership triage, planning, developer/team management, standups, de
 - Core setup and workflows: this README
 - Environment variable reference: [`docs/ENVIRONMENT.md`](docs/ENVIRONMENT.md)
 - API route overview by domain: [`docs/API_OVERVIEW.md`](docs/API_OVERVIEW.md)
+- **Forge module:** [`docs/forge/README.md`](docs/forge/README.md) — Flutter build portal (roles `forge_admin`, `forge_pm`)
 
 ## Current scope
 
@@ -92,8 +93,10 @@ After `npm run db:seed`, these users exist:
 |------|-------------------|
 | `lead@local.dev` | `lead` |
 | `assistant@local.dev` | `ChangeMe!Asst1` |
+| `forge-admin@local.dev` | `ForgeAdmin1!` (Forge catalog admin) |
+| `pm@local.dev` | `ForgePm1!` (Forge PM — request builds) |
 
-- Override defaults during seed with `SEED_LEAD_PASSWORD` and `SEED_ASSISTANT_PASSWORD`.
+- Override defaults during seed with `SEED_LEAD_PASSWORD`, `SEED_ASSISTANT_PASSWORD`, `SEED_FORGE_ADMIN_PASSWORD`, and `SEED_FORGE_PM_PASSWORD`.
 - Seeded/admin-created users must complete first login by changing password (`mustChangePassword`) and setting authenticator-based MFA (TOTP).
 - App sessions use local JWT auth backed by PostgreSQL user records.
 
@@ -109,9 +112,10 @@ After `npm run db:seed`, these users exist:
 
 ### ClickUp
 
-- Configured from `Apps -> App registration` via personal API token.
-- Supports team/space/list discovery plus task import into triage.
-- Supports saving default team/space/list and auto-sync toggle.
+- Configured from **Apps → ClickUp** via personal API token (encrypted at rest; never returned by the API).
+- Discovers workspace → space → folder → list, maps lists, preview/import into Triage.
+- To Do and ClickUp tasks share the `ExternalWorkItem` table; each provider has its own sync cron.
+- See [docs/integrations/clickup-architecture.md](docs/integrations/clickup-architecture.md).
 
 ### SMTP (invite/reset emails)
 
@@ -128,7 +132,9 @@ After `npm run db:seed`, these users exist:
 | Team management | Developer directory and team memberships | `/api/developers*`, `/api/team-memberships*` |
 | Coordination | Standups, decisions, dashboard overview, search | `/api/standup*`, `/api/decisions*`, `/api/dashboard-overview`, `/api/search` |
 | Expenses | Expense CRUD, receipt upload/download, summary | `/api/expenses*`, `/api/exports/expenses.csv` |
-| Integrations | M365 app registration, Outlook import, Microsoft To Do import, ClickUp sync | `/api/integrations/*`, `/api/outlook/*`, `/api/todo/*`, `/api/clickup/*` |
+| Integrations | M365 app registration, Outlook import, Microsoft To Do + ClickUp (`ExternalWorkItem`) | `/api/integrations/*`, `/api/outlook/*`, `/api/todo/*`, `/api/integrations/clickup/*` |
+| **Forge** | Flutter demo/mock build portal (PM self-service + admin catalog) | `/api/forge/*`, `/forge/*` UI |
+| **Engineering Catalog** | Repository intelligence (GitLab self-hosted + GitHub cloud), imports, sync, gaps, Forge linkage | `/api/catalog/*`, `/catalog/*` UI — see [docs/catalog/README.md](docs/catalog/README.md) |
 | Reporting/ops | CSV export, release milestones, weekly digest endpoint | `/api/exports/triage.csv`, `/api/release-milestones*`, `/api/cron/weekly-digest` |
 
 ## Demo data
@@ -173,20 +179,14 @@ npm run db:seed
 
 `npm run build` compiles shared types, generates Prisma client for the API workspace, then builds API and web.
 
-## Deployment note
+## Deployment (LAN production)
 
-Deploying only the static web client is not sufficient for sign-in. You also need:
+Canonical runbook: **[DEPLOYMENT.md](DEPLOYMENT.md)**  
+LAN server (shared with OmniTest): `10.100.235.21` — web `:46810`, API `:46811`  
+Compose kit: [`deploy/`](deploy/) · Paramiko: `python scripts/deploy-production.py`  
+Config: [`docs/configuration.md`](docs/configuration.md) · Assessment: [`docs/production-readiness-assessment.md`](docs/production-readiness-assessment.md)
 
-- A reachable API origin
-- A web build configured with that API public origin (`VITE_API_BASE_URL` when needed)
-- API CORS including the deployed web origin
-
-Deployment checklist:
-- Set `AUTH_JWT_SECRET` (32+ chars) and production `DATABASE_URL`
-- Run Prisma migrate + seed strategy for target environment
-- Set `CORS_ORIGIN` to deployed web origins
-- Set `VITE_API_BASE_URL` for the built frontend if API is cross-origin
-- Configure optional integrations (M365/ClickUp/SMTP) only if needed
+Do **not** auto-seed production. Set `AUTH_JWT_SECRET`, strong Postgres credentials, `CORS_ORIGIN=http://10.100.235.21:46810`, and bake web with `VITE_API_BASE_URL=http://10.100.235.21:46811`.
 
 ## Troubleshooting (`SELF_SIGNED_CERT_IN_CHAIN`)
 

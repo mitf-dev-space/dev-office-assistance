@@ -18,3 +18,32 @@
 - Early v1 framing included dev triage plus Microsoft Entra and Outlook as integrations, with clarification that Outlook must not gate basic app operation.
 - Only the two principal users sign in to the app. The developer roster (name, skills, and team placement) is separate from `User` accounts: roster members are not given app logins; they are used for triage assignees and team management.
 - Optional Microsoft 365–style features are grouped under an Apps area (e.g. Outlook, Microsoft To Do), with room to add more integrations; configuring or registering these connections from the UI is a desired direction when practical.
+
+---
+
+## Forge module (Flutter build portal)
+
+**Mission:** Self-service demo/mock **Flutter mobile builds** for project managers — integrated into Helm, not a separate product.
+
+**Authoritative contract:** [`docs/forge/CONTRACT.md`](docs/forge/CONTRACT.md)
+
+**Roles:**
+
+| Role | Helm core nav | Forge |
+|------|---------------|-------|
+| `lead` | Yes | Full (admin + PM) |
+| `forge_admin` | No | Catalog + runners |
+| `forge_pm` | No | Request builds only |
+| `assistant` | Yes | No |
+
+**Paths:** API `/api/forge/*`, UI `/forge/*`, Prisma `Forge*` models, worker placeholder `apps/forge-worker/`.
+
+**Worker rule:** Host OS .NET worker only — never inside Fastify/Docker. Never real iOS on Windows.
+
+**Seed users:** `forge-admin@local.dev`, `a.almesbahi@masarat.ly` (Forge PM) — see README.
+
+**Optional dev Mailpit:** `docker compose --profile forge-dev up -d mailpit` (8025/1025).
+
+**PRD loops 0–18** documented in product PRD; bootstrap complete. **Loop 2** (domain state machine + unit tests) and **Loop 5** (banks CRUD API + admin UI + demo seed) are implemented — continue with Loop 6 (applications/Git).
+
+**Verification:** `npm run build`; `npm run test -w @office/api` (Forge domain); `pwsh scripts/verify/forge-smoke.ps1` (API auth + banks); `pwsh scripts/forge/test-smtp.ps1` (SMTP test email); role-gated API returns 403 for `assistant` on `/api/forge/dashboard`; Forge nav hidden for non-Forge roles. E2E: sign in at `http://localhost:5174` (default Vite port; `:5173` is often Account Assistance on this machine) as `forge-admin@local.dev` / `a.almesbahi@masarat.ly`.

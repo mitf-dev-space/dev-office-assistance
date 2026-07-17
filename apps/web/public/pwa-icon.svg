@@ -1,8 +1,11 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Cairn">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Helm">
   <rect width="512" height="512" rx="112" fill="#0f766e"/>
-  <g fill="#fff">
-    <rect x="48" y="320" width="416" height="80" rx="24" opacity="0.95"/>
-    <rect x="80" y="192" width="352" height="80" rx="24" opacity="0.9"/>
-    <rect x="112" y="80" width="288" height="80" rx="24"/>
+  <g stroke="#fff" fill="none" stroke-linecap="round">
+    <circle cx="256" cy="256" r="160" stroke-width="36"/>
+    <circle cx="256" cy="256" r="48" fill="#fff" stroke="none"/>
+    <line x1="256" y1="256" x2="256" y2="112" stroke-width="28"/>
+    <line x1="256" y1="256" x2="256" y2="112" stroke-width="28" transform="rotate(45 256 256)"/>
+    <line x1="256" y1="256" x2="256" y2="112" stroke-width="28" transform="rotate(90 256 256)"/>
+    <line x1="256" y1="256" x2="256" y2="112" stroke-width="28" transform="rotate(135 256 256)"/>
   </g>
 </svg>
