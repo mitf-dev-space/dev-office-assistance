@@ -28,6 +28,9 @@ const envSchema = z.object({
   /** Fallback Microsoft 365 / Entra IDs when the database row is empty (superseded by values saved in the app UI). */
   M365_TENANT_ID: z.string().optional().default(""),
   M365_CLIENT_ID: z.string().optional().default(""),
+  FORGE_ARTIFACTS_ROOT: z.string().default("data/forge-artifacts"),
+  FORGE_RUNNER_TOKEN_PEPPER: z.string().min(32).optional(),
+  FORGE_ALLOW_IOS_SIMULATION: z.coerce.boolean().default(false),
 });
 
 export type Env = z.infer<typeof envSchema>;

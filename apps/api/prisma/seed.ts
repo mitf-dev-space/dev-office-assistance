@@ -22,8 +22,12 @@ async function seedTeamMembership(developerId: string, team: DevTeam, isTeamLead
 async function main() {
   const passwordLead = process.env.SEED_LEAD_PASSWORD ?? "lead";
   const passwordAsst = process.env.SEED_ASSISTANT_PASSWORD ?? "ChangeMe!Asst1";
+  const passwordForgeAdmin = process.env.SEED_FORGE_ADMIN_PASSWORD ?? "ForgeAdmin1!";
+  const passwordForgePm = process.env.SEED_FORGE_PM_PASSWORD ?? "ForgePm1!";
   const h1 = await bcrypt.hash(passwordLead, 10);
   const h2 = await bcrypt.hash(passwordAsst, 10);
+  const hForgeAdmin = await bcrypt.hash(passwordForgeAdmin, 10);
+  const hForgePm = await bcrypt.hash(passwordForgePm, 10);
 
   await prisma.user.upsert({
     where: { email: "lead@local.dev" },
@@ -53,6 +57,34 @@ async function main() {
     },
   });
 
+  await prisma.user.upsert({
+    where: { email: "forge-admin@local.dev" },
+    create: {
+      email: "forge-admin@local.dev",
+      passwordHash: hForgeAdmin,
+      displayName: "Forge Administrator",
+      role: "forge_admin",
+    },
+    update: {
+      passwordHash: hForgeAdmin,
+      role: "forge_admin",
+    },
+  });
+
+  await prisma.user.upsert({
+    where: { email: "pm@local.dev" },
+    create: {
+      email: "pm@local.dev",
+      passwordHash: hForgePm,
+      displayName: "Project Manager Demo",
+      role: "forge_pm",
+    },
+    update: {
+      passwordHash: hForgePm,
+      role: "forge_pm",
+    },
+  });
+
   const devCount = await prisma.developer.count();
   if (devCount > 0) {
     console.log("Developers table already has rows; skipping roster + team seed (use a fresh db or reset).");
@@ -78,7 +110,12 @@ async function main() {
     console.log(`Seeded ${MASARAT_ROSTER.length} developers and their team assignments.`);
   }
 
-  console.log("Sign-in accounts: lead@local.dev, assistant@local.dev (SEED_LEAD_PASSWORD / SEED_ASSISTANT_PASSWORD).");
+  console.log(
+    "Sign-in accounts: lead@local.dev, assistant@local.dev, forge-admin@local.dev, pm@local.dev",
+  );
+  console.log(
+    "Passwords: SEED_LEAD_PASSWORD / SEED_ASSISTANT_PASSWORD / SEED_FORGE_ADMIN_PASSWORD / SEED_FORGE_PM_PASSWORD",
+  );
 }
 
 main()

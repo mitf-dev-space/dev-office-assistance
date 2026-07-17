@@ -21,6 +21,8 @@ import { registerDeveloperRoutes } from "./routes/developers.js";
 import { registerOutlookRoutes } from "./routes/outlook.js";
 import { registerMicrosoftTodoRoutes } from "./routes/microsoftTodo.js";
 import { registerM365IntegrationsRoutes } from "./routes/m365Integrations.js";
+import { registerForgeUserRoutes } from "./routes/forge/userRoutes.js";
+import { registerForgeWorkerRoutes } from "./routes/forge/workerRoutes.js";
 import { ensureUploadDir } from "./upload/storage.js";
 
 export async function buildServer() {
@@ -65,6 +67,8 @@ export async function buildServer() {
 
   registerAuthLoginRoutes(app, env);
 
+  await registerForgeWorkerRoutes(app, env);
+
   await app.register(async function protectedApi(inner) {
     await inner.register(multipart, { limits: { fileSize: env.MAX_UPLOAD_BYTES } });
     inner.addHook("preValidation", authMiddleware);
@@ -83,6 +87,7 @@ export async function buildServer() {
     await registerDeveloperRoutes(inner);
     await registerOutlookRoutes(inner);
     await registerMicrosoftTodoRoutes(inner);
+    await registerForgeUserRoutes(inner, env);
   });
 
   return { app, env };

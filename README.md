@@ -8,6 +8,7 @@ It combines leadership triage, planning, developer/team management, standups, de
 - Core setup and workflows: this README
 - Environment variable reference: [`docs/ENVIRONMENT.md`](docs/ENVIRONMENT.md)
 - API route overview by domain: [`docs/API_OVERVIEW.md`](docs/API_OVERVIEW.md)
+- **Forge module:** [`docs/forge/README.md`](docs/forge/README.md) — Flutter build portal (roles `forge_admin`, `forge_pm`)
 
 ## Current scope
 
@@ -92,8 +93,10 @@ After `npm run db:seed`, these users exist:
 |------|-------------------|
 | `lead@local.dev` | `lead` |
 | `assistant@local.dev` | `ChangeMe!Asst1` |
+| `forge-admin@local.dev` | `ForgeAdmin1!` (Forge catalog admin) |
+| `pm@local.dev` | `ForgePm1!` (Forge PM — request builds) |
 
-- Override defaults during seed with `SEED_LEAD_PASSWORD` and `SEED_ASSISTANT_PASSWORD`.
+- Override defaults during seed with `SEED_LEAD_PASSWORD`, `SEED_ASSISTANT_PASSWORD`, `SEED_FORGE_ADMIN_PASSWORD`, and `SEED_FORGE_PM_PASSWORD`.
 - Seeded/admin-created users must complete first login by changing password (`mustChangePassword`) and setting authenticator-based MFA (TOTP).
 - App sessions use local JWT auth backed by PostgreSQL user records.
 
@@ -129,6 +132,7 @@ After `npm run db:seed`, these users exist:
 | Coordination | Standups, decisions, dashboard overview, search | `/api/standup*`, `/api/decisions*`, `/api/dashboard-overview`, `/api/search` |
 | Expenses | Expense CRUD, receipt upload/download, summary | `/api/expenses*`, `/api/exports/expenses.csv` |
 | Integrations | M365 app registration, Outlook import, Microsoft To Do import, ClickUp sync | `/api/integrations/*`, `/api/outlook/*`, `/api/todo/*`, `/api/clickup/*` |
+| **Forge** | Flutter demo/mock build portal (PM self-service + admin catalog) | `/api/forge/*`, `/forge/*` UI |
 | Reporting/ops | CSV export, release milestones, weekly digest endpoint | `/api/exports/triage.csv`, `/api/release-milestones*`, `/api/cron/weekly-digest` |
 
 ## Demo data

@@ -140,3 +140,34 @@ Most endpoints require a local JWT bearer token from `/api/auth/login`, unless e
 
 - `POST /api/cron/weekly-digest` (requires `CRON_SECRET` when configured)
 
+## Forge module
+
+Requires JWT. Roles: `forge_pm` and `forge_admin` (and `lead`) for access; admin routes require `forge_admin` or `lead`.
+
+### PM / dashboard (forge access)
+
+- `GET /api/forge/dashboard`
+- `GET /api/forge/build-requests`
+- `POST /api/forge/build-requests` (501 until Loop 7)
+- `GET /api/forge/build-requests/:id`
+
+### Administration (forge admin)
+
+- `GET|POST|PUT /api/forge/banks`
+- `GET|POST|PUT /api/forge/applications`
+- `GET|POST|PUT /api/forge/build-profiles`
+- `GET /api/forge/runners`
+
+### Worker (runner token — no user JWT)
+
+Registered outside the JWT plugin:
+
+- `POST /api/forge/runners/register`
+- `POST /api/forge/runners/:id/heartbeat`
+- `POST /api/forge/runners/:id/claim`
+- `POST /api/forge/platform-builds/:id/progress`
+- `POST /api/forge/platform-builds/:id/complete`
+- `POST /api/forge/platform-builds/:id/fail`
+
+See [docs/forge/CONTRACT.md](./forge/CONTRACT.md).
+

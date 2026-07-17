@@ -21,6 +21,21 @@ import { ProfilePage } from "./pages/ProfilePage";
 import { PriorityPage } from "./pages/PriorityPage";
 import { StandupPage } from "./pages/StandupPage";
 import { DecisionsPage } from "./pages/DecisionsPage";
+import { ForgeRouteGuard } from "./pages/forge/ForgeRouteGuard";
+import { ForgeDashboardPage } from "./pages/forge/ForgeDashboardPage";
+import { ForgeBuildsPage } from "./pages/forge/ForgeBuildsPage";
+import { ForgeRequestBuildPage } from "./pages/forge/ForgeRequestBuildPage";
+import { ForgeBuildDetailPage } from "./pages/forge/ForgeBuildDetailPage";
+import { ForgeAdminPage } from "./pages/forge/ForgeAdminPage";
+import { isForgeOnlyUser } from "./lib/forge/roles";
+
+function DashboardRoute() {
+  const { user } = useAuth();
+  if (user && isForgeOnlyUser(user.role)) {
+    return <Navigate to="/forge" replace />;
+  }
+  return <DashboardPage />;
+}
 
 export default function App() {
   const { user, ready, logout } = useAuth();
@@ -48,7 +63,7 @@ export default function App() {
     <div className="app-shell app-shell--with-sidebar">
       <AppLayout user={user} onLogout={logout}>
         <Routes>
-          <Route path="/" element={<DashboardPage />} />
+          <Route path="/" element={<DashboardRoute />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/triage/new" element={<TriageCreatePage />} />
           <Route path="/triage/:id" element={<TriageDetailPage />} />
@@ -68,6 +83,15 @@ export default function App() {
           <Route path="/apps/outlook" element={<OutlookPage />} />
           <Route path="/apps/todo" element={<TodoPage />} />
           <Route path="/email" element={<Navigate to="/apps/outlook" replace />} />
+          <Route element={<ForgeRouteGuard />}>
+            <Route path="/forge" element={<ForgeDashboardPage />} />
+            <Route path="/forge/builds" element={<ForgeBuildsPage />} />
+            <Route path="/forge/builds/new" element={<ForgeRequestBuildPage />} />
+            <Route path="/forge/builds/:id" element={<ForgeBuildDetailPage />} />
+          </Route>
+          <Route element={<ForgeRouteGuard requireAdmin />}>
+            <Route path="/forge/admin" element={<ForgeAdminPage />} />
+          </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </AppLayout>

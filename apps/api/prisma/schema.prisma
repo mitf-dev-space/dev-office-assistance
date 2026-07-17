@@ -114,6 +114,8 @@ model User {
 
   authoredDecisions TeamDecision[]
 
+  forgeBuildRequests ForgeBuildRequest[]
+
 }
 
 
@@ -509,6 +511,191 @@ model TeamDecision {
 
   @@index([createdById])
 
+}
+
+// ── Forge module (Flutter mobile build portal) ───────────────────────────────
+
+enum ForgePlatform {
+  Android
+  iOS
+}
+
+enum ForgeBuildStatus {
+  Draft
+  Queued
+  WaitingForCompatibleRunner
+  Claimed
+  PreparingWorkspace
+  CloningRepository
+  Building
+  Signing
+  CollectingArtifact
+  UploadingArtifact
+  Succeeded
+  Failed
+  Cancelled
+  TimedOut
+  PartiallySucceeded
+  InProgress
+  SimulationCompleted
+}
+
+enum ForgeRunnerStatus {
+  Online
+  Offline
+  Draining
+}
+
+enum ForgeOperatingSystem {
+  Windows
+  macOS
+  Linux
+}
+
+model ForgeBank {
+  id           String             @id @default(uuid())
+  name         String
+  code         String             @unique
+  isActive     Boolean            @default(true)
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+  applications ForgeApplication[]
+}
+
+model ForgeApplication {
+  id                    String              @id @default(uuid())
+  bankId                String
+  bank                  ForgeBank           @relation(fields: [bankId], references: [id], onDelete: Cascade)
+  name                  String
+  description           String?
+  repositoryProvider    String
+  repositoryUrl         String
+  repositoryCredentialRef String?
+  defaultBranch         String              @default("main")
+  requiredFlutterVersion String?
+  androidEnabled        Boolean             @default(true)
+  iosEnabled            Boolean             @default(true)
+  isActive              Boolean             @default(true)
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+  buildProfiles         ForgeBuildProfile[]
+  buildRequests         ForgeBuildRequest[]
+
+  @@index([bankId])
+}
+
+model ForgeBuildProfile {
+  id                 String              @id @default(uuid())
+  applicationId      String
+  application        ForgeApplication    @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  name               String
+  description        String?
+  flutterFlavor      String?
+  dartEntryPoint     String              @default("lib/main.dart")
+  environmentName    String?
+  androidArtifactType String             @default("apk")
+  androidBuildMode   String              @default("release")
+  iosExportMethod    String?
+  timeoutMinutes     Int                 @default(60)
+  isActive           Boolean             @default(true)
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  buildRequests      ForgeBuildRequest[]
+
+  @@index([applicationId])
+}
+
+model ForgeBuildRequest {
+  id              String               @id @default(uuid())
+  applicationId   String
+  application     ForgeApplication     @relation(fields: [applicationId], references: [id])
+  buildProfileId  String
+  buildProfile    ForgeBuildProfile    @relation(fields: [buildProfileId], references: [id])
+  requestedById   String
+  requestedBy     User                 @relation(fields: [requestedById], references: [id])
+  gitReferenceType String              @default("branch")
+  gitReference    String
+  resolvedCommitSha String?
+  requestNote     String?
+  overallStatus   ForgeBuildStatus     @default(Queued)
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+  startedAtUtc    DateTime?
+  completedAtUtc  DateTime?
+  platformBuilds  ForgePlatformBuild[]
+
+  @@index([applicationId])
+  @@index([requestedById])
+  @@index([overallStatus])
+}
+
+model ForgePlatformBuild {
+  id              String            @id @default(uuid())
+  buildRequestId  String
+  buildRequest    ForgeBuildRequest @relation(fields: [buildRequestId], references: [id], onDelete: Cascade)
+  platform        ForgePlatform
+  status          ForgeBuildStatus  @default(Queued)
+  runnerId        String?
+  runner          ForgeRunner?      @relation(fields: [runnerId], references: [id], onDelete: SetNull)
+  attemptNumber   Int               @default(1)
+  simulationOnly  Boolean           @default(false)
+  queuedAtUtc     DateTime          @default(now())
+  startedAtUtc    DateTime?
+  completedAtUtc  DateTime?
+  failureCategory String?
+  failureSummary  String?
+  artifacts       ForgeArtifact[]
+
+  @@index([buildRequestId])
+  @@index([status])
+  @@index([runnerId])
+}
+
+model ForgeArtifact {
+  id               String             @id @default(uuid())
+  platformBuildId  String
+  platformBuild    ForgePlatformBuild @relation(fields: [platformBuildId], references: [id], onDelete: Cascade)
+  fileName         String
+  contentType      String
+  fileSizeBytes    BigInt             @default(0)
+  checksumSha256   String?
+  storagePath      String
+  createdAt        DateTime           @default(now())
+  expiresAtUtc     DateTime?
+
+  @@index([platformBuildId])
+}
+
+model ForgeRunner {
+  id                    String               @id @default(uuid())
+  name                  String               @unique
+  operatingSystem       ForgeOperatingSystem
+  architecture          String
+  supportedPlatforms    ForgePlatform[]
+  capabilities          Json
+  status                ForgeRunnerStatus    @default(Offline)
+  tokenHash             String?
+  tokenHint             String?
+  lastHeartbeatAtUtc    DateTime?
+  maximumConcurrentJobs Int                  @default(1)
+  currentJobCount       Int                  @default(0)
+  version               String?
+  createdAt             DateTime             @default(now())
+  updatedAt             DateTime             @updatedAt
+  platformBuilds        ForgePlatformBuild[]
+}
+
+model ForgeAuditLog {
+  id         String   @id @default(uuid())
+  actorUserId String?
+  action     String
+  entityType String
+  entityId   String?
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([entityType, entityId])
 }
 
 

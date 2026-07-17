@@ -21,7 +21,17 @@ This project reads environment variables from the repository root `.env` for API
 |----------|----------|---------|-------|
 | `SEED_LEAD_PASSWORD` | No | `lead` | Seeded password for `lead@local.dev` |
 | `SEED_ASSISTANT_PASSWORD` | No | `ChangeMe!Asst1` | Seeded password for `assistant@local.dev` |
+| `SEED_FORGE_ADMIN_PASSWORD` | No | `ForgeAdmin1!` | Seeded password for `forge-admin@local.dev` |
+| `SEED_FORGE_PM_PASSWORD` | No | `ForgePm1!` | Seeded password for `pm@local.dev` |
 | `SEED_DEMO_DATA` | No | false | If truthy, seed also upserts demo triage/planning/standup/decision data |
+
+## Forge module variables
+
+| Variable | Required | Default | Notes |
+|----------|----------|---------|-------|
+| `FORGE_ARTIFACTS_ROOT` | No | `data/forge-artifacts` | Local artifact storage root |
+| `FORGE_RUNNER_TOKEN_PEPPER` | No | — | Min 32 chars when runner registration is enabled |
+| `FORGE_ALLOW_IOS_SIMULATION` | No | `false` | Dev/test only — never enable in production |
 
 ## Optional integration variables
 
