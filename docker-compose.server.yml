@@ -1,3 +1,6 @@
+# Server overlay for LAN deployment alongside OmniTest (46xxx ports).
+# Usage: docker compose -f docker-compose.server.yml --env-file .env up -d --no-build
+
 services:
   postgres:
     image: postgres:16-alpine
@@ -5,8 +8,6 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: office_assistance
-    ports:
-      - "5432:5432"
     volumes:
       - office_pg_data:/var/lib/postgresql/data
     healthcheck:
@@ -16,18 +17,14 @@ services:
       retries: 10
 
   api:
-    build:
-      context: .
-      dockerfile: apps/api/Dockerfile
-      args:
-        NPM_STRICT_SSL: ${NPM_STRICT_SSL:-1}
+    image: helm-qa-api:latest
+    pull_policy: never
     environment:
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/office_assistance
       AUTH_JWT_SECRET: ${AUTH_JWT_SECRET}
       UPLOAD_DIR: /app/data/uploads
       MAX_UPLOAD_BYTES: ${MAX_UPLOAD_BYTES:-26214400}
-      # Allow browser origins for static UI (nginx on 8080) and local Vite (5173).
-      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:5173,http://127.0.0.1:5173,http://localhost:8080,http://127.0.0.1:8080}
+      CORS_ORIGIN: ${CORS_ORIGIN}
       PORT: "4000"
       NODE_ENV: production
       RATE_LIMIT_MAX: ${RATE_LIMIT_MAX:-200}
@@ -36,8 +33,15 @@ services:
       FORGE_ARTIFACTS_ROOT: ${FORGE_ARTIFACTS_ROOT:-data/forge-artifacts}
       FORGE_ALLOW_IOS_SIMULATION: ${FORGE_ALLOW_IOS_SIMULATION:-false}
       FORGE_RUNNER_TOKEN_PEPPER: ${FORGE_RUNNER_TOKEN_PEPPER:-}
+    command:
+      - sh
+      - -c
+      - |
+        npm run prisma:migrate -w @office/api && \
+        npm run db:seed -w @office/api && \
+        node apps/api/dist/index.js
     ports:
-      - "4000:4000"
+      - "46811:4000"
     depends_on:
       postgres:
         condition: service_healthy
@@ -45,28 +49,12 @@ services:
       - office_uploads:/app/data/uploads
 
   web:
-    build:
-      context: .
-      dockerfile: apps/web/Dockerfile
-      args:
-        NPM_STRICT_SSL: ${NPM_STRICT_SSL:-1}
-        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:4000}
-        # M365 app IDs: configure via API (DB or M365_TENANT_ID / M365_CLIENT_ID for `api` service), not the web build.
+    image: helm-qa-web:latest
+    pull_policy: never
     ports:
-      - "8080:80"
+      - "46810:80"
     depends_on:
       - api
-
-  mailpit:
-    profiles: ["forge-dev"]
-    image: axllent/mailpit:latest
-    ports:
-      - "8025:8025"
-      - "1025:1025"
-    environment:
-      MP_MAX_MESSAGES: 5000
-      MP_SMTP_AUTH_ACCEPT_ANY: 1
-      MP_SMTP_AUTH_ALLOW_INSECURE: 1
 
 volumes:
   office_pg_data:

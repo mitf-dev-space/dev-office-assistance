@@ -25,9 +25,9 @@ export function ForgeDashboardPage() {
         title="Forge"
         lead="Self-service demo and mock Flutter mobile builds for project management."
       />
-      <Alert color="blue" title="Bootstrap module">
-        Forge is integrated into Helm. Build execution, Git integration, and runners land in PRD
-        Loops 3–18. Use Request build to preview the PM flow.
+      <Alert color="blue" title="Forge module">
+        Banks admin is live (Loop 5). Build execution, Git integration, and runners land in PRD
+        Loops 6–18. Use Request build to preview the PM flow.
       </Alert>
       {dashboardQuery.isError && (
         <Text role="alert" c="red">

@@ -153,7 +153,7 @@ Requires JWT. Roles: `forge_pm` and `forge_admin` (and `lead`) for access; admin
 
 ### Administration (forge admin)
 
-- `GET|POST|PUT /api/forge/banks`
+- `GET|POST|PUT /api/forge/banks` — **implemented** (Loop 5: Zod validation, demo seed)
 - `GET|POST|PUT /api/forge/applications`
 - `GET|POST|PUT /api/forge/build-profiles`
 - `GET /api/forge/runners`

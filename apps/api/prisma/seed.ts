@@ -110,6 +110,21 @@ async function main() {
     console.log(`Seeded ${MASARAT_ROSTER.length} developers and their team assignments.`);
   }
 
+  const demoBanks = [
+    { code: "JUM", name: "Jumhoria Bank" },
+    { code: "TEJ", name: "Tejari Bank" },
+    { code: "SAH", name: "Sahara Bank" },
+  ] as const;
+
+  for (const bank of demoBanks) {
+    await prisma.forgeBank.upsert({
+      where: { code: bank.code },
+      create: { code: bank.code, name: bank.name, isActive: true },
+      update: { name: bank.name, isActive: true },
+    });
+  }
+  console.log(`Seeded ${demoBanks.length} Forge demo banks (${demoBanks.map((b) => b.code).join(", ")}).`);
+
   console.log(
     "Sign-in accounts: lead@local.dev, assistant@local.dev, forge-admin@local.dev, pm@local.dev",
   );

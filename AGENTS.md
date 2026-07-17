@@ -44,6 +44,6 @@
 
 **Optional dev Mailpit:** `docker compose --profile forge-dev up -d mailpit` (8025/1025).
 
-**PRD loops 0–18** documented in product PRD; bootstrap complete — implement Loops 2+ sequentially.
+**PRD loops 0–18** documented in product PRD; bootstrap complete. **Loop 2** (domain state machine + unit tests) and **Loop 5** (banks CRUD API + admin UI + demo seed) are implemented — continue with Loop 6 (applications/Git).
 
-**Verification:** `npm run build`; role-gated API returns 403 for `assistant` on `/api/forge/dashboard`; Forge nav hidden for non-Forge roles.
+**Verification:** `npm run build`; `npm run test -w @office/api` (Forge domain); `pwsh scripts/verify/forge-smoke.ps1` (API auth + banks); role-gated API returns 403 for `assistant` on `/api/forge/dashboard`; Forge nav hidden for non-Forge roles. E2E: sign in at `http://localhost:5173` (or next free port if 5173 is taken) as `forge-admin@local.dev` / `pm@local.dev`.
