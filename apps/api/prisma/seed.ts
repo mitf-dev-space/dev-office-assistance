@@ -30,12 +30,13 @@ async function seedTeamMembership(developerId: string, team: DevTeam, isTeamLead
 async function main() {
   const passwordLead = process.env.SEED_LEAD_PASSWORD ?? "lead";
   const passwordAsst = process.env.SEED_ASSISTANT_PASSWORD ?? "ChangeMe!Asst1";
-  const passwordForgeAdmin = process.env.SEED_FORGE_ADMIN_PASSWORD ?? "ForgeAdmin1!";
-  const passwordForgePm = process.env.SEED_FORGE_PM_PASSWORD ?? "ForgePm1!";
+  const passwordForgeMobileLead =
+    process.env.SEED_FORGE_MOBILE_LEAD_PASSWORD ??
+    process.env.SEED_FORGE_ADMIN_PASSWORD ??
+    "ForgeMobileLead1!";
   const h1 = await bcrypt.hash(passwordLead, 10);
   const h2 = await bcrypt.hash(passwordAsst, 10);
-  const hForgeAdmin = await bcrypt.hash(passwordForgeAdmin, 10);
-  const hForgePm = await bcrypt.hash(passwordForgePm, 10);
+  const hForgeMobileLead = await bcrypt.hash(passwordForgeMobileLead, 10);
 
   await prisma.user.upsert({
     where: { email: "lead@local.dev" },
@@ -65,41 +66,55 @@ async function main() {
     },
   });
 
-  await prisma.user.upsert({
-    where: { email: "forge-admin@local.dev" },
-    create: {
-      email: "forge-admin@local.dev",
-      passwordHash: hForgeAdmin,
-      displayName: "Forge Administrator",
-      role: "forge_admin",
-    },
-    update: {
-      passwordHash: hForgeAdmin,
-      role: "forge_admin",
-    },
+  // Migrate legacy Forge roles → forge_mobile_lead (also covered by SQL migration).
+  await prisma.user.updateMany({
+    where: { role: { in: ["forge_admin", "forge_pm"] } },
+    data: { role: "forge_mobile_lead" },
   });
 
-  const forgePmEmail = process.env.SEED_FORGE_PM_EMAIL ?? "a.almesbahi@masarat.ly";
+  const existingForgeAdmin = await prisma.user.findUnique({
+    where: { email: "forge-admin@local.dev" },
+  });
+  if (existingForgeAdmin) {
+    await prisma.user.update({
+      where: { id: existingForgeAdmin.id },
+      data: {
+        email: "forge-mobile-lead@local.dev",
+        passwordHash: hForgeMobileLead,
+        displayName: "Forge Mobile Lead",
+        role: "forge_mobile_lead",
+      },
+    });
+  } else {
+    await prisma.user.upsert({
+      where: { email: "forge-mobile-lead@local.dev" },
+      create: {
+        email: "forge-mobile-lead@local.dev",
+        passwordHash: hForgeMobileLead,
+        displayName: "Forge Mobile Lead",
+        role: "forge_mobile_lead",
+      },
+      update: {
+        passwordHash: hForgeMobileLead,
+        displayName: "Forge Mobile Lead",
+        role: "forge_mobile_lead",
+      },
+    });
+  }
+
+  // Former PM demo account becomes a mobile-lead login (no forge_pm role).
+  const legacyPmEmail = process.env.SEED_FORGE_PM_EMAIL ?? "a.almesbahi@masarat.ly";
   const existingPm = await prisma.user.findFirst({
-    where: { OR: [{ email: "pm@local.dev" }, { email: forgePmEmail }, { role: "forge_pm" }] },
+    where: { OR: [{ email: "pm@local.dev" }, { email: legacyPmEmail }] },
   });
   if (existingPm) {
     await prisma.user.update({
       where: { id: existingPm.id },
       data: {
-        email: forgePmEmail,
-        passwordHash: hForgePm,
-        displayName: "Project Manager Demo",
-        role: "forge_pm",
-      },
-    });
-  } else {
-    await prisma.user.create({
-      data: {
-        email: forgePmEmail,
-        passwordHash: hForgePm,
-        displayName: "Project Manager Demo",
-        role: "forge_pm",
+        role: "forge_mobile_lead",
+        displayName: existingPm.displayName?.includes("Project Manager")
+          ? "Forge Mobile Lead"
+          : existingPm.displayName,
       },
     });
   }
@@ -205,10 +220,10 @@ async function main() {
   await seedHelmGithubRepository(prisma, catalogEnvFrom(env));
 
   console.log(
-    `Sign-in accounts: lead@local.dev, assistant@local.dev, forge-admin@local.dev, ${forgePmEmail}`,
+    "Sign-in accounts: lead@local.dev, assistant@local.dev, forge-mobile-lead@local.dev",
   );
   console.log(
-    "Passwords: SEED_LEAD_PASSWORD / SEED_ASSISTANT_PASSWORD / SEED_FORGE_ADMIN_PASSWORD / SEED_FORGE_PM_PASSWORD",
+    "Passwords: SEED_LEAD_PASSWORD / SEED_ASSISTANT_PASSWORD / SEED_FORGE_MOBILE_LEAD_PASSWORD (legacy SEED_FORGE_ADMIN_PASSWORD accepted)",
   );
 }
 

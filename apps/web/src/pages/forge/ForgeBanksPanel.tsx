@@ -25,8 +25,11 @@ export function ForgeBanksPanel() {
   const qc = useQueryClient();
   const uid = useId();
   const [createOpen, setCreateOpen] = useState(false);
+  const [editBank, setEditBank] = useState<ForgeBankDto | null>(null);
   const [name, setName] = useState("");
   const [code, setCode] = useState("");
+  const [sharedDeliveryPath, setSharedDeliveryPath] = useState("");
+  const [editPath, setEditPath] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
   const { page, setPage, limit, setLimit, searchInput, search, onSearchChange } =
     useListQueryState(25);
@@ -52,11 +55,16 @@ export function ForgeBanksPanel() {
       setFormError(null);
       const res = await request("/api/forge/banks", {
         method: "POST",
-        body: JSON.stringify({ name: name.trim(), code: code.trim(), isActive: true }),
+        body: JSON.stringify({
+          name: name.trim(),
+          code: code.trim(),
+          isActive: true,
+          sharedDeliveryPath: sharedDeliveryPath.trim() || null,
+        }),
       });
       if (!res.ok) {
-        const body = (await res.json().catch(() => null)) as { message?: string } | null;
-        throw new Error(body?.message ?? "create_failed");
+        const body = (await res.json().catch(() => null)) as { message?: string; error?: string } | null;
+        throw new Error(body?.message ?? body?.error ?? "create_failed");
       }
     },
     onSuccess: async () => {
@@ -64,6 +72,7 @@ export function ForgeBanksPanel() {
       setCreateOpen(false);
       setName("");
       setCode("");
+      setSharedDeliveryPath("");
       setFormError(null);
     },
     onError: (err: Error) => setFormError(err.message),
@@ -82,6 +91,27 @@ export function ForgeBanksPanel() {
     },
   });
 
+  const pathMut = useMutation({
+    mutationFn: async () => {
+      if (!editBank) throw new Error("no_bank");
+      setFormError(null);
+      const res = await request(`/api/forge/banks/${editBank.id}`, {
+        method: "PUT",
+        body: JSON.stringify({ sharedDeliveryPath: editPath.trim() || null }),
+      });
+      if (!res.ok) {
+        const body = (await res.json().catch(() => null)) as { error?: string; message?: string } | null;
+        throw new Error(body?.message ?? body?.error ?? "update_failed");
+      }
+    },
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ["forge", "banks"] });
+      setEditBank(null);
+      setFormError(null);
+    },
+    onError: (err: Error) => setFormError(err.message),
+  });
+
   const banks = banksQuery.data?.items ?? [];
 
   return (
@@ -90,7 +120,7 @@ export function ForgeBanksPanel() {
         <div>
           <Text fw={600}>Banks</Text>
           <Text size="sm" c="dimmed">
-            Register Libyan bank tenants for mobile wallet and portal applications.
+            Register Libyan bank tenants and optional shared delivery folders for PM handoff.
           </Text>
         </div>
         <Button onClick={() => setCreateOpen(true)}>Add bank</Button>
@@ -113,15 +143,17 @@ export function ForgeBanksPanel() {
             <Table.Tr>
               <Table.Th>Name</Table.Th>
               <Table.Th>Code</Table.Th>
+              <Table.Th>Shared delivery path</Table.Th>
               <Table.Th>Applications</Table.Th>
               <Table.Th>Status</Table.Th>
               <Table.Th w={120}>Active</Table.Th>
+              <Table.Th w={100} />
             </Table.Tr>
           </Table.Thead>
           <Table.Tbody>
             {banksQuery.isLoading && (
               <Table.Tr>
-                <Table.Td colSpan={5}>
+                <Table.Td colSpan={7}>
                   <Text size="sm" c="dimmed" p="sm">
                     Loading banks…
                   </Text>
@@ -130,7 +162,7 @@ export function ForgeBanksPanel() {
             )}
             {!banksQuery.isLoading && banks.length === 0 && (
               <Table.Tr>
-                <Table.Td colSpan={5}>
+                <Table.Td colSpan={7}>
                   <Text size="sm" c="dimmed" p="sm">
                     No banks yet. Add one or re-run the database seed for demo data.
                   </Text>
@@ -143,6 +175,11 @@ export function ForgeBanksPanel() {
                 <Table.Td>
                   <Text ff="monospace" size="sm">
                     {bank.code}
+                  </Text>
+                </Table.Td>
+                <Table.Td>
+                  <Text size="xs" ff="monospace" lineClamp={2}>
+                    {bank.sharedDeliveryPath ?? "—"}
                   </Text>
                 </Table.Td>
                 <Table.Td>{bank.applicationCount}</Table.Td>
@@ -158,6 +195,19 @@ export function ForgeBanksPanel() {
                     aria-label={`Toggle ${bank.name} active`}
                     onChange={() => toggleMut.mutate(bank)}
                   />
+                </Table.Td>
+                <Table.Td>
+                  <Button
+                    size="compact-xs"
+                    variant="light"
+                    onClick={() => {
+                      setEditBank(bank);
+                      setEditPath(bank.sharedDeliveryPath ?? "");
+                      setFormError(null);
+                    }}
+                  >
+                    Path
+                  </Button>
                 </Table.Td>
               </Table.Tr>
             ))}
@@ -210,6 +260,15 @@ export function ForgeBanksPanel() {
               required
               disabled={createMut.isPending}
             />
+            <TextInput
+              id={`${uid}-path`}
+              label="Shared delivery path (optional)"
+              description="UNC or absolute folder the API host can write (e.g. \\fileserver\forge\jumhoria)."
+              placeholder="\\fileserver\forge\jumhoria"
+              value={sharedDeliveryPath}
+              onChange={(e) => setSharedDeliveryPath(e.currentTarget.value)}
+              disabled={createMut.isPending}
+            />
             {formError && (
               <Text role="alert" c="red" size="sm">
                 {formError}
@@ -229,6 +288,54 @@ export function ForgeBanksPanel() {
               </Button>
               <Button type="submit" loading={createMut.isPending}>
                 Create bank
+              </Button>
+            </Group>
+          </Stack>
+        </form>
+      </FormModal>
+
+      <FormModal
+        opened={Boolean(editBank)}
+        onClose={() => {
+          if (pathMut.isPending) return;
+          setEditBank(null);
+          setFormError(null);
+        }}
+        title={editBank ? `Shared path · ${editBank.name}` : "Shared path"}
+        closeOnClickOutside={!pathMut.isPending}
+        closeOnEscape={!pathMut.isPending}
+      >
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            pathMut.mutate();
+          }}
+        >
+          <Stack gap="md">
+            <TextInput
+              label="Shared delivery path"
+              description="Leave empty to clear. Applications can override this path."
+              placeholder="\\fileserver\forge\jumhoria"
+              value={editPath}
+              onChange={(e) => setEditPath(e.currentTarget.value)}
+              disabled={pathMut.isPending}
+            />
+            {formError && (
+              <Text role="alert" c="red" size="sm">
+                {formError}
+              </Text>
+            )}
+            <Group justify="flex-end">
+              <Button
+                type="button"
+                variant="default"
+                disabled={pathMut.isPending}
+                onClick={() => setEditBank(null)}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" loading={pathMut.isPending}>
+                Save path
               </Button>
             </Group>
           </Stack>

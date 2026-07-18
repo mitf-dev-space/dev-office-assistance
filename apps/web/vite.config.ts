@@ -71,6 +71,9 @@ export default defineConfig({
       "/api": {
         target: devApiProxy,
         changeOrigin: true,
+        // Local LLMs (LM Studio / Gemma) can take 20–90s per assist call.
+        timeout: 120_000,
+        proxyTimeout: 120_000,
       },
       "/healthz": {
         target: devApiProxy,

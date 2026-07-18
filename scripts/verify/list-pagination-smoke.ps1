@@ -37,7 +37,8 @@ function Assert-PageMeta($Json, [string]$ItemsKey) {
 Write-Host "List pagination smoke — API $ApiBase"
 
 $assistantToken = Login "assistant@local.dev" "ChangeMe!Asst1"
-$adminToken = Login "forge-admin@local.dev" "ForgeAdmin1!"
+$mlPw = if ($env:SEED_FORGE_MOBILE_LEAD_PASSWORD) { $env:SEED_FORGE_MOBILE_LEAD_PASSWORD } elseif ($env:SEED_FORGE_ADMIN_PASSWORD) { $env:SEED_FORGE_ADMIN_PASSWORD } else { "ForgeMobileLead1!" }
+$adminToken = Login "forge-mobile-lead@local.dev" $mlPw
 
 $coreEndpoints = @(
   @{ Path = "/api/triage-items?page=1&limit=5"; Key = "items" },

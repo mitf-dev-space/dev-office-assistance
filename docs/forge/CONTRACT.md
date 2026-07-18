@@ -30,7 +30,7 @@
 ## 2. Trust boundaries
 
 ```text
-Browser (PM / forge_admin / lead)
+Browser (forge_mobile_lead / lead)
   → Helm Web :5173 (JWT in storage)
   → Helm API :4000 (Fastify + Prisma)
   → PostgreSQL office_assistance
@@ -65,7 +65,7 @@ Host worker
 | GET/POST/PUT | `/api/forge/build-profiles` | forge admin |
 | GET | `/api/forge/runners` | forge admin |
 
-Forge access = `lead`, `forge_admin`, `forge_pm`. Admin = `lead`, `forge_admin`.
+Forge access = `lead`, `forge_mobile_lead`. Admin (banks/apps/profiles/runners + shared paths) = same.
 
 ---
 

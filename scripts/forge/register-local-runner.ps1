@@ -22,7 +22,8 @@ function Login([string]$Email, [string]$Password) {
 }
 
 Write-Host "Registering Forge runner at $ApiBase"
-$token = Login "forge-admin@local.dev" "ForgeAdmin1!"
+$pw = if ($env:SEED_FORGE_MOBILE_LEAD_PASSWORD) { $env:SEED_FORGE_MOBILE_LEAD_PASSWORD } elseif ($env:SEED_FORGE_ADMIN_PASSWORD) { $env:SEED_FORGE_ADMIN_PASSWORD } else { "ForgeMobileLead1!" }
+$token = Login "forge-mobile-lead@local.dev" $pw
 
 $body = @{
   name = $RunnerName

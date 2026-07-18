@@ -109,6 +109,14 @@ const envSchema = z.object({
   MICROSOFT_TODO_SYNC_ENABLED: z.coerce.boolean().default(true),
   MICROSOFT_TODO_SYNC_INTERVAL_MINUTES: z.coerce.number().default(30),
   CRON_SECRET: z.string().optional().default(""),
+  /** AES key for workspace LLM API key at rest (32-byte base64 or 64-char hex). Falls back to CATALOG_TOKEN_ENCRYPTION_KEY. */
+  HELM_SECRET_ENCRYPTION_KEY: z.string().optional().default(""),
+  /** Force mock LLM provider (CI/E2E). */
+  HELM_LLM_MOCK: z.string().optional().default(""),
+  /** Soft daily LLM call cap when not stored in DB yet (DB dailyCap wins at runtime). */
+  HELM_LLM_DAILY_CAP: z.coerce.number().default(200),
+  INSIGHTS_SCHEDULER_ENABLED: z.coerce.boolean().default(true),
+  INSIGHTS_SCHEDULER_INTERVAL_HOURS: z.coerce.number().default(24),
   /** Local prod-like compose only — never set on the LAN server. */
   ALLOW_LOCALHOST_CORS_IN_PRODUCTION: z.coerce.boolean().default(false),
 });

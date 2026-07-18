@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useId, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { Table } from "@mantine/core";
+import { Text, Table } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { PageMeta, PlanningItemDto, PlanningStatus } from "@office/types";
 import { PLANNING_STATUSES } from "@office/types";
 import { useApi } from "../useApi";
 import { PageHeader } from "../components/PageHeader";
+import { AiAssistPanel } from "../components/ai/AiAssistPanel";
 import { DataTableSkeleton } from "../components/skeletons/AppSkeletons";
 import { AppDataTable } from "../components/ui/AppDataTable";
 import { ListQueryBar, TablePagination } from "../components/ui/ListQueryBar";
@@ -108,6 +109,64 @@ export function PlanningPage() {
     openPlanningModal();
   };
 
+  const [planningDraft, setPlanningDraft] = useState<{
+    title: string;
+    description: string;
+    department: string | null;
+    program: string | null;
+    rationale: string;
+    source: string;
+  } | null>(null);
+  const [planningAssistError, setPlanningAssistError] = useState<string | null>(null);
+
+  const planningDraftMut = useMutation({
+    mutationFn: async () => {
+      setPlanningAssistError(null);
+      const res = await request("/api/assist/planning-draft", {
+        method: "POST",
+        body: JSON.stringify({
+          department: departmentFilter || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "assist_failed");
+      return data as {
+        title: string;
+        description: string;
+        department: string | null;
+        program: string | null;
+        rationale: string;
+        source: string;
+      };
+    },
+    onSuccess: (data) => setPlanningDraft(data),
+    onError: (err) =>
+      setPlanningAssistError(err instanceof Error ? err.message : "assist_failed"),
+  });
+
+  const queuePlanningMut = useMutation({
+    mutationFn: async () => {
+      if (!planningDraft) throw new Error("no_draft");
+      const res = await request("/api/assist/proposals", {
+        method: "POST",
+        body: JSON.stringify({
+          kind: "planning_create",
+          title: `Create planning: ${planningDraft.title}`,
+          summary: planningDraft.rationale,
+          payload: {
+            title: planningDraft.title,
+            description: planningDraft.description,
+            department: planningDraft.department,
+            program: planningDraft.program,
+          },
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "proposal_failed");
+      return data;
+    },
+  });
+
   const moveStatusMut = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: PlanningStatus }) => {
       const res = await request(`/api/planning/${id}`, {
@@ -163,6 +222,38 @@ export function PlanningPage() {
         eyebrow="Roadmap"
         title="Dev planning"
         lead="Roadmap and initiatives by area: what we are building next, when we aim to ship, and current status. Separate from day-to-day triage items."
+      />
+
+      <AiAssistPanel
+        lead="Draft a planning initiative from open triage pressure. Accept queues a create proposal for lead review."
+        label="Draft initiative"
+        loading={planningDraftMut.isPending}
+        onSuggest={() => planningDraftMut.mutate()}
+        error={planningAssistError}
+        source={planningDraft?.source ?? null}
+        suggestion={
+          planningDraft ? (
+            <>
+              <Text size="sm" fw={600}>
+                {planningDraft.title}
+              </Text>
+              <Text size="sm">{planningDraft.description}</Text>
+              <Text size="xs" c="dimmed">
+                {planningDraft.rationale}
+                {planningDraft.department ? ` · ${planningDraft.department}` : ""}
+                {planningDraft.program ? ` · ${planningDraft.program}` : ""}
+              </Text>
+              {queuePlanningMut.isSuccess ? (
+                <Text size="xs" c="dimmed" mt={6}>
+                  Queued — approve on{" "}
+                  <Link to="/apps/ai/review">AI review queue</Link>.
+                </Text>
+              ) : null}
+            </>
+          ) : null
+        }
+        onAccept={planningDraft ? () => queuePlanningMut.mutate() : undefined}
+        acceptLabel="Queue create for review"
       />
 
       <p className="planning-view-hint">

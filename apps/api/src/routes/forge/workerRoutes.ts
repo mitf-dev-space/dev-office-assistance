@@ -12,6 +12,7 @@ import {
 import { saveArtifactFile } from "../../forge/services/artifactStorage.js";
 import { touchRunnerHeartbeat } from "../../forge/services/runnerService.js";
 import { maybeNotifyBuildRequestComplete } from "../../forge/services/buildNotificationService.js";
+import { maybePublishArtifactToSharedFolder } from "../../forge/services/sharedDeliveryService.js";
 
 async function refreshOverallAndNotify(
   app: FastifyInstance,
@@ -196,6 +197,28 @@ export async function registerForgeWorkerRoutes(app: FastifyInstance, env: Env) 
         storagePath: saved.storagePath,
       },
     });
+
+    try {
+      const delivery = await maybePublishArtifactToSharedFolder({
+        buildRequestId: row.buildRequestId,
+        platformBuildId: id,
+        sourceStoragePath: saved.storagePath,
+        originalFileName: fileName,
+      });
+      if (delivery.status === "copied") {
+        app.log.info(
+          { buildRequestId: row.buildRequestId, path: delivery.path },
+          "forge artifact published to shared folder",
+        );
+      } else if (delivery.status === "failed") {
+        app.log.warn(
+          { buildRequestId: row.buildRequestId, error: delivery.error },
+          "forge shared folder publish failed",
+        );
+      }
+    } catch (err) {
+      app.log.error({ err, buildRequestId: row.buildRequestId }, "forge shared folder publish error");
+    }
 
     await transitionPlatformBuildStatus(id, "Succeeded", { completedAtUtc: new Date() });
     await refreshOverallAndNotify(app, row.buildRequestId);

@@ -25,11 +25,14 @@ export function ForgeApplicationsPanel() {
   const qc = useQueryClient();
   const uid = useId();
   const [createOpen, setCreateOpen] = useState(false);
+  const [editApp, setEditApp] = useState<ForgeApplicationDto | null>(null);
   const [bankId, setBankId] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [repositoryUrl, setRepositoryUrl] = useState("");
   const [projectSubpath, setProjectSubpath] = useState("");
   const [defaultBranch, setDefaultBranch] = useState("dev");
+  const [sharedDeliveryPath, setSharedDeliveryPath] = useState("");
+  const [editPath, setEditPath] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
   const { page, setPage, limit, setLimit, searchInput, search, onSearchChange } =
     useListQueryState(25);
@@ -75,11 +78,12 @@ export function ForgeApplicationsPanel() {
           androidEnabled: true,
           iosEnabled: false,
           isActive: true,
+          sharedDeliveryPath: sharedDeliveryPath.trim() || null,
         }),
       });
       if (!res.ok) {
-        const body = (await res.json().catch(() => null)) as { message?: string } | null;
-        throw new Error(body?.message ?? "create_failed");
+        const body = (await res.json().catch(() => null)) as { message?: string; error?: string } | null;
+        throw new Error(body?.message ?? body?.error ?? "create_failed");
       }
     },
     onSuccess: async () => {
@@ -88,6 +92,7 @@ export function ForgeApplicationsPanel() {
       setName("");
       setRepositoryUrl("");
       setProjectSubpath("");
+      setSharedDeliveryPath("");
       setFormError(null);
     },
     onError: (err: Error) => setFormError(err.message),
@@ -104,6 +109,27 @@ export function ForgeApplicationsPanel() {
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ["forge", "applications"] });
     },
+  });
+
+  const pathMut = useMutation({
+    mutationFn: async () => {
+      if (!editApp) throw new Error("no_app");
+      setFormError(null);
+      const res = await request(`/api/forge/applications/${editApp.id}`, {
+        method: "PUT",
+        body: JSON.stringify({ sharedDeliveryPath: editPath.trim() || null }),
+      });
+      if (!res.ok) {
+        const body = (await res.json().catch(() => null)) as { error?: string; message?: string } | null;
+        throw new Error(body?.message ?? body?.error ?? "update_failed");
+      }
+    },
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ["forge", "applications"] });
+      setEditApp(null);
+      setFormError(null);
+    },
+    onError: (err: Error) => setFormError(err.message),
   });
 
   const apps = appsQuery.data?.items ?? [];
@@ -132,9 +158,11 @@ export function ForgeApplicationsPanel() {
             <Table.Tr>
               <Table.Th>Name</Table.Th>
               <Table.Th>Bank</Table.Th>
+              <Table.Th>Shared delivery</Table.Th>
               <Table.Th>Branch</Table.Th>
               <Table.Th>Profiles</Table.Th>
               <Table.Th>Status</Table.Th>
+              <Table.Th />
               <Table.Th />
             </Table.Tr>
           </Table.Thead>
@@ -148,6 +176,14 @@ export function ForgeApplicationsPanel() {
                   </Text>
                 </Table.Td>
                 <Table.Td>{app.bankCode}</Table.Td>
+                <Table.Td>
+                  <Text size="xs" ff="monospace" lineClamp={2}>
+                    {app.sharedDeliveryPath ??
+                      (app.bankSharedDeliveryPath
+                        ? `(bank) ${app.bankSharedDeliveryPath}`
+                        : "—")}
+                  </Text>
+                </Table.Td>
                 <Table.Td>{app.defaultBranch}</Table.Td>
                 <Table.Td>{app.profileCount}</Table.Td>
                 <Table.Td>
@@ -161,6 +197,19 @@ export function ForgeApplicationsPanel() {
                     onChange={() => toggleMut.mutate(app)}
                     aria-label={`Toggle ${app.name}`}
                   />
+                </Table.Td>
+                <Table.Td>
+                  <Button
+                    size="compact-xs"
+                    variant="light"
+                    onClick={() => {
+                      setEditApp(app);
+                      setEditPath(app.sharedDeliveryPath ?? "");
+                      setFormError(null);
+                    }}
+                  >
+                    Path
+                  </Button>
                 </Table.Td>
               </Table.Tr>
             ))}
@@ -230,6 +279,14 @@ export function ForgeApplicationsPanel() {
               onChange={(e) => setDefaultBranch(e.currentTarget.value)}
               disabled={createMut.isPending}
             />
+            <TextInput
+              label="Shared delivery path override (optional)"
+              description="Overrides the bank path for this app only."
+              placeholder="\\fileserver\forge\jumhoria\wallet"
+              value={sharedDeliveryPath}
+              onChange={(e) => setSharedDeliveryPath(e.currentTarget.value)}
+              disabled={createMut.isPending}
+            />
             {formError && (
               <Text c="red" size="sm" role="alert">
                 {formError}
@@ -249,6 +306,51 @@ export function ForgeApplicationsPanel() {
               </Button>
               <Button type="submit" loading={createMut.isPending}>
                 Create application
+              </Button>
+            </Group>
+          </Stack>
+        </form>
+      </FormModal>
+
+      <FormModal
+        opened={Boolean(editApp)}
+        onClose={() => {
+          if (pathMut.isPending) return;
+          setEditApp(null);
+          setFormError(null);
+        }}
+        title={editApp ? `Shared path · ${editApp.name}` : "Shared path"}
+        closeOnClickOutside={!pathMut.isPending}
+        closeOnEscape={!pathMut.isPending}
+      >
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            pathMut.mutate();
+          }}
+        >
+          <Stack gap="md">
+            <Text size="sm" c="dimmed">
+              Bank default: {editApp?.bankSharedDeliveryPath ?? "not set"}
+            </Text>
+            <TextInput
+              label="Application override"
+              description="Leave empty to use the bank path."
+              value={editPath}
+              onChange={(e) => setEditPath(e.currentTarget.value)}
+              disabled={pathMut.isPending}
+            />
+            {formError && (
+              <Text role="alert" c="red" size="sm">
+                {formError}
+              </Text>
+            )}
+            <Group justify="flex-end">
+              <Button type="button" variant="default" disabled={pathMut.isPending} onClick={() => setEditApp(null)}>
+                Cancel
+              </Button>
+              <Button type="submit" loading={pathMut.isPending}>
+                Save path
               </Button>
             </Group>
           </Stack>

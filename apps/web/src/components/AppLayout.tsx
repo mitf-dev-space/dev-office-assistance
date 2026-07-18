@@ -41,6 +41,8 @@ import {
   IconPlug,
   IconRefresh,
   IconInbox,
+  IconSparkles,
+  IconChartDots3,
 } from "@tabler/icons-react";
 import type { SessionUser } from "../auth/AuthContext";
 import { canAccessCatalog } from "@office/types";
@@ -68,6 +70,7 @@ function pathToNavGroup(pathname: string): NavGroupId | null {
     pathname.startsWith("/triage") ||
     pathname.startsWith("/priority") ||
     pathname.startsWith("/standup") ||
+    pathname.startsWith("/insights") ||
     pathname.startsWith("/decisions")
   ) {
     return "work";
@@ -407,6 +410,15 @@ export function AppLayout({ user, onLogout, children }: Props) {
                   color="teal"
                 />
                 <AppNavItem
+                  to="/insights"
+                  label="Insights"
+                  leftSection={<IconChartDots3 {...iconProps} />}
+                  onClick={close}
+                  active={navActive("/insights", { end: true })}
+                  showIconRail={showIconRail}
+                  color="cyan"
+                />
+                <AppNavItem
                   to="/decisions"
                   label="Decisions"
                   leftSection={<IconScale {...iconProps} />}
@@ -479,6 +491,36 @@ export function AppLayout({ user, onLogout, children }: Props) {
                   active={navActive("/apps", { end: true })}
                   showIconRail={showIconRail}
                   color={primary}
+                />
+                <AppNavItem
+                  to="/apps/ai"
+                  label="Workspace AI"
+                  leftSection={<IconSparkles {...iconProps} />}
+                  onClick={close}
+                  active={
+                    navActive("/apps/ai", { end: true }) ||
+                    navActive("/settings/ai", { end: true })
+                  }
+                  showIconRail={showIconRail}
+                  color="teal"
+                />
+                <AppNavItem
+                  to="/apps/ai/chat"
+                  label="Ask Helm"
+                  leftSection={<IconSparkles {...iconProps} />}
+                  onClick={close}
+                  active={navActive("/apps/ai/chat", { end: true })}
+                  showIconRail={showIconRail}
+                  color="teal"
+                />
+                <AppNavItem
+                  to="/apps/ai/review"
+                  label="AI review"
+                  leftSection={<IconSparkles {...iconProps} />}
+                  onClick={close}
+                  active={navActive("/apps/ai/review", { end: true })}
+                  showIconRail={showIconRail}
+                  color="teal"
                 />
                 <AppNavItem
                   to="/apps/outlook"
@@ -639,7 +681,7 @@ export function AppLayout({ user, onLogout, children }: Props) {
               {showForgeAdmin && (
                 <AppNavItem
                   to="/forge/admin"
-                  label="Forge admin"
+                  label="Forge settings"
                   leftSection={<IconSettings {...iconProps} />}
                   onClick={close}
                   active={navActive("/forge/admin", { end: true })}

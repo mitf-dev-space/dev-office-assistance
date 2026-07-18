@@ -15,6 +15,7 @@ import { canAccessForge } from "../lib/forge/roles";
 import { useApi } from "../useApi";
 import { PageHeader } from "../components/PageHeader";
 import { AssigneeWorkloadBlock } from "../components/dashboard/AssigneeWorkloadBlock";
+import { MorningBriefCard } from "../components/ai/MorningBriefCard";
 import { ForgeMetricGrid } from "../pages/forge/ForgeOverview";
 import {
   MetricStripSkeleton,
@@ -148,6 +149,8 @@ export function DashboardPage() {
           </div>
         }
       />
+
+      <MorningBriefCard />
 
       <section className="card dashboard-kpi-card" aria-label="Primary metrics">
         <div className="card__head card__head--row">

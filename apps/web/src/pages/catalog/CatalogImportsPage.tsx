@@ -13,6 +13,7 @@ import {
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { PageHeader } from "../../components/PageHeader";
+import { AiAssistPanel } from "../../components/ai/AiAssistPanel";
 import { AppPage } from "../../components/ui/AppPage";
 import { AppDataTable } from "../../components/ui/AppDataTable";
 import { useApi } from "../../useApi";
@@ -360,6 +361,20 @@ export function CatalogIntegrationsPage() {
 
 export function CatalogGapsPage() {
   const { request } = useApi();
+  const [topAssist, setTopAssist] = useState<{
+    summary: string;
+    topGaps: Array<{
+      id: string;
+      title: string;
+      priority: string;
+      repositoryName: string;
+      why: string;
+      href: string;
+    }>;
+    source: string;
+  } | null>(null);
+  const [topError, setTopError] = useState<string | null>(null);
+
   const q = useQuery({
     queryKey: ["catalog", "gaps"],
     queryFn: async () => {
@@ -369,6 +384,32 @@ export function CatalogGapsPage() {
         gaps: Array<{ id: string; title: string; priority: string; repository: { id: string; name: string } }>;
       };
     },
+  });
+
+  const topMut = useMutation({
+    mutationFn: async () => {
+      setTopError(null);
+      const res = await request("/api/assist/catalog-gaps-top", {
+        method: "POST",
+        body: "{}",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "assist_failed");
+      return data as {
+        summary: string;
+        topGaps: Array<{
+          id: string;
+          title: string;
+          priority: string;
+          repositoryName: string;
+          why: string;
+          href: string;
+        }>;
+        source: string;
+      };
+    },
+    onSuccess: (data) => setTopAssist(data),
+    onError: (err) => setTopError(err instanceof Error ? err.message : "assist_failed"),
   });
 
   if (q.isLoading) {
@@ -387,6 +428,36 @@ export function CatalogGapsPage() {
         eyebrow="Engineering Catalog"
         title="Engineering gaps"
         lead="Open quality and ownership gaps detected across catalog repositories."
+      />
+      <AiAssistPanel
+        lead="Pick the top 3 gaps that need leadership attention this week."
+        label="Top 3 gaps"
+        loading={topMut.isPending}
+        onSuggest={() => topMut.mutate()}
+        error={topError}
+        source={topAssist?.source ?? null}
+        suggestion={
+          topAssist ? (
+            <>
+              <Text size="sm">{topAssist.summary}</Text>
+              <Stack gap={6} mt="xs">
+                {topAssist.topGaps.map((g, idx) => (
+                  <div key={g.id}>
+                    <Text size="sm" fw={600}>
+                      {idx + 1}.{" "}
+                      <Text component={Link} to={g.href} span inherit>
+                        {g.repositoryName}: {g.title}
+                      </Text>
+                    </Text>
+                    <Text size="xs" c="dimmed">
+                      {g.priority} — {g.why}
+                    </Text>
+                  </div>
+                ))}
+              </Stack>
+            </>
+          ) : null
+        }
       />
       <section className="card">
         {gaps.length === 0 ? (

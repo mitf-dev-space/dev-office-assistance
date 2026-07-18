@@ -1,9 +1,11 @@
 import { useEffect, useId, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import { Text } from "@mantine/core";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { PageMeta, TeamDecisionDto } from "@office/types";
 import { useApi } from "../useApi";
 import { PageHeader } from "../components/PageHeader";
+import { AiAssistPanel } from "../components/ai/AiAssistPanel";
 import { FormModal } from "../components/modals/FormModal";
 import { ListQueryBar, TablePagination } from "../components/ui/ListQueryBar";
 import { useListQueryState } from "../hooks/useListQueryState";
@@ -213,8 +215,53 @@ export function DecisionsPage() {
   const { request } = useApi();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<TeamDecisionDto | null>(null);
+  const [decisionDraft, setDecisionDraft] = useState<{
+    title: string;
+    body: string;
+    rationale: string;
+    source: string;
+  } | null>(null);
+  const [decisionAssistError, setDecisionAssistError] = useState<string | null>(null);
   const { page, setPage, limit, setLimit, searchInput, search, onSearchChange } =
     useListQueryState(25);
+
+  const decisionDraftMut = useMutation({
+    mutationFn: async () => {
+      setDecisionAssistError(null);
+      const res = await request("/api/assist/decision-draft", {
+        method: "POST",
+        body: JSON.stringify({}),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "assist_failed");
+      return data as { title: string; body: string; rationale: string; source: string };
+    },
+    onSuccess: (data) => setDecisionDraft(data),
+    onError: (err) =>
+      setDecisionAssistError(err instanceof Error ? err.message : "assist_failed"),
+  });
+
+  const queueDecisionMut = useMutation({
+    mutationFn: async () => {
+      if (!decisionDraft) throw new Error("no_draft");
+      const res = await request("/api/assist/proposals", {
+        method: "POST",
+        body: JSON.stringify({
+          kind: "decision_create",
+          title: `Log decision: ${decisionDraft.title}`,
+          summary: decisionDraft.rationale,
+          payload: {
+            title: decisionDraft.title,
+            body: decisionDraft.body,
+            decidedOn: new Date().toISOString().slice(0, 10),
+          },
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "proposal_failed");
+      return data;
+    },
+  });
 
   const listUrl = useMemo(
     () => `/api/decisions?${buildListQuery({ page, limit, q: search })}`,
@@ -250,6 +297,34 @@ export function DecisionsPage() {
             Log decision
           </button>
         }
+      />
+
+      <AiAssistPanel
+        lead="Draft a decision log entry. Accept queues it for lead approval before it is written."
+        label="Draft decision"
+        loading={decisionDraftMut.isPending}
+        onSuggest={() => decisionDraftMut.mutate()}
+        error={decisionAssistError}
+        source={decisionDraft?.source ?? null}
+        suggestion={
+          decisionDraft ? (
+            <>
+              <Text size="sm" fw={600}>
+                {decisionDraft.title}
+              </Text>
+              <Text size="sm" style={{ whiteSpace: "pre-wrap" }}>
+                {decisionDraft.body}
+              </Text>
+              {queueDecisionMut.isSuccess ? (
+                <Text size="xs" c="dimmed" mt={6}>
+                  Queued — approve on <Link to="/apps/ai/review">AI review queue</Link>.
+                </Text>
+              ) : null}
+            </>
+          ) : null
+        }
+        onAccept={decisionDraft ? () => queueDecisionMut.mutate() : undefined}
+        acceptLabel="Queue for review"
       />
 
       <ListQueryBar

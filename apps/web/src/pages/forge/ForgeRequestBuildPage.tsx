@@ -25,6 +25,8 @@ export function ForgeRequestBuildPage() {
   const [gitReference, setGitReference] = useState("dev");
   const [requestNote, setRequestNote] = useState("");
   const [android, setAndroid] = useState(true);
+  const [publishToSharedFolder, setPublishToSharedFolder] = useState(false);
+  const [notifyEmail, setNotifyEmail] = useState("");
 
   const selectedApp = useMemo(
     () => catalogQuery.data?.applications.find((a) => a.id === applicationId) ?? null,
@@ -43,11 +45,13 @@ export function ForgeRequestBuildPage() {
           gitReference: gitReference.trim(),
           requestNote: requestNote.trim() || undefined,
           platforms: android ? ["Android"] : [],
+          publishToSharedFolder,
+          notifyEmail: publishToSharedFolder ? notifyEmail.trim() : undefined,
         }),
       });
       if (!res.ok) {
-        const t = await res.text();
-        throw new Error(t || "create_failed");
+        const body = (await res.json().catch(() => null)) as { error?: string } | null;
+        throw new Error(body?.error || "create_failed");
       }
       return (await res.json()) as { buildRequest: { id: string } };
     },
@@ -62,7 +66,7 @@ export function ForgeRequestBuildPage() {
       <PageHeader
         eyebrow="Forge"
         title="Request build"
-        lead="Select application, profile, and Git branch for a demo Android build."
+        lead="Select application, profile, and Git branch. Optionally publish the APK to the bank/app shared folder and notify a PM by email."
         actions={
           <Link to="/forge/builds" className="btn btn-ghost">
             View builds
@@ -150,9 +154,44 @@ export function ForgeRequestBuildPage() {
           />
         </div>
 
+        <div className="field field--row">
+          <label htmlFor="forge-publish">
+            <input
+              id="forge-publish"
+              type="checkbox"
+              checked={publishToSharedFolder}
+              onChange={(e) => setPublishToSharedFolder(e.target.checked)}
+            />
+            Publish to shared folder (copy APK for PM)
+          </label>
+        </div>
+
+        {publishToSharedFolder ? (
+          <>
+            <div className="field">
+              <label htmlFor="forge-pm-email">PM notify email</label>
+              <input
+                id="forge-pm-email"
+                type="email"
+                value={notifyEmail}
+                onChange={(e) => setNotifyEmail(e.target.value)}
+                placeholder="pm@example.com"
+                required
+              />
+              <p className="muted" style={{ margin: "0.35rem 0 0", fontSize: "0.85rem" }}>
+                On success, email this address and mobile leads with the shared folder path (no Helm login for the PM).
+              </p>
+            </div>
+            <p className="muted" style={{ fontSize: "0.85rem" }}>
+              Delivery path:{" "}
+              <code>{selectedApp?.resolvedSharedDeliveryPath ?? "not configured — set on bank/app in Forge settings"}</code>
+            </p>
+          </>
+        ) : null}
+
         {createMut.isError && (
           <p className="dashboard-error" role="alert">
-            Build request failed.
+            {createMut.error instanceof Error ? createMut.error.message : "Build request failed."}
           </p>
         )}
 
@@ -160,7 +199,13 @@ export function ForgeRequestBuildPage() {
           <button
             type="button"
             className="btn btn-primary"
-            disabled={!applicationId || !profileId || !android || createMut.isPending}
+            disabled={
+              !applicationId ||
+              !profileId ||
+              !android ||
+              createMut.isPending ||
+              (publishToSharedFolder && !notifyEmail.trim())
+            }
             onClick={() => createMut.mutate()}
           >
             {createMut.isPending ? "Submitting…" : "Submit build request"}

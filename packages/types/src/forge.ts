@@ -2,23 +2,22 @@ export const USER_ROLES = [
   "lead",
   "assistant",
   "member",
-  "forge_admin",
-  "forge_pm",
+  "forge_mobile_lead",
 ] as const;
 
 export type UserRole = (typeof USER_ROLES)[number];
 
 export function canAccessForge(role: string): boolean {
-  return role === "lead" || role === "forge_admin" || role === "forge_pm";
+  return role === "lead" || role === "forge_mobile_lead";
 }
 
 export function canAdminForge(role: string): boolean {
-  return role === "lead" || role === "forge_admin";
+  return role === "lead" || role === "forge_mobile_lead";
 }
 
 /** Forge-only accounts do not use Helm triage/planning nav. */
 export function isForgeOnlyUser(role: string): boolean {
-  return role === "forge_admin" || role === "forge_pm";
+  return role === "forge_mobile_lead";
 }
 
 export type ForgeDashboardDto = {
@@ -46,6 +45,7 @@ export type ForgeBankDto = {
   name: string;
   code: string;
   isActive: boolean;
+  sharedDeliveryPath: string | null;
   applicationCount: number;
   createdAt: string;
   updatedAt: string;

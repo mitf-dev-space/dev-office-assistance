@@ -5,6 +5,7 @@ import type {
   CreateForgeApplicationInput,
   UpdateForgeApplicationInput,
 } from "../schemas/applicationSchemas.js";
+import { normalizeSharedDeliveryPath } from "../sharedDeliveryPath.js";
 
 function buildApplicationWhere(pq: ParsedListQuery): Prisma.ForgeApplicationWhereInput {
   if (!pq.q) return {};
@@ -27,7 +28,9 @@ export async function listForgeApplications(pq: ParsedListQuery) {
       take: pq.limit,
       orderBy: [{ isActive: "desc" }, { name: "asc" }],
       include: {
-        bank: { select: { id: true, name: true, code: true, isActive: true } },
+        bank: {
+          select: { id: true, name: true, code: true, isActive: true, sharedDeliveryPath: true },
+        },
         _count: { select: { buildProfiles: true, buildRequests: true } },
       },
     }),
@@ -41,7 +44,7 @@ export async function listActiveForgeCatalog() {
     where: { isActive: true, bank: { isActive: true } },
     orderBy: { name: "asc" },
     include: {
-      bank: { select: { id: true, name: true, code: true } },
+      bank: { select: { id: true, name: true, code: true, sharedDeliveryPath: true } },
       buildProfiles: {
         where: { isActive: true },
         orderBy: { name: "asc" },
@@ -71,6 +74,10 @@ export async function createForgeApplication(input: CreateForgeApplicationInput)
       androidEnabled: input.androidEnabled ?? true,
       iosEnabled: input.iosEnabled ?? false,
       isActive: input.isActive ?? true,
+      sharedDeliveryPath:
+        input.sharedDeliveryPath === undefined
+          ? undefined
+          : normalizeSharedDeliveryPath(input.sharedDeliveryPath),
     },
   });
 }
@@ -98,6 +105,9 @@ export async function updateForgeApplication(id: string, input: UpdateForgeAppli
       ...(input.androidEnabled !== undefined ? { androidEnabled: input.androidEnabled } : {}),
       ...(input.iosEnabled !== undefined ? { iosEnabled: input.iosEnabled } : {}),
       ...(input.isActive !== undefined ? { isActive: input.isActive } : {}),
+      ...(input.sharedDeliveryPath !== undefined
+        ? { sharedDeliveryPath: normalizeSharedDeliveryPath(input.sharedDeliveryPath) }
+        : {}),
     },
   });
 }

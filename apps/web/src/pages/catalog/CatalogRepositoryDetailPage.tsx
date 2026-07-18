@@ -12,6 +12,7 @@ import {
   Text,
   Textarea,
   TextInput,
+  List,
 } from "@mantine/core";
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
@@ -34,6 +35,7 @@ import {
   PipelineBadge,
   providerLabel,
 } from "./catalogUi";
+import { AiAssistPanel } from "../../components/ai/AiAssistPanel";
 
 type Connection = { id: string; slug: string; name: string; providerKind: string; hasToken?: boolean };
 
@@ -189,6 +191,29 @@ export function CatalogRepositoryDetailPage() {
     onSuccess: () => navigate("/catalog/repositories"),
   });
 
+  const [catalogExplain, setCatalogExplain] = useState<{
+    explanation: string;
+    recommendedActions: string[];
+    source: string;
+  } | null>(null);
+  const [catalogExplainError, setCatalogExplainError] = useState<string | null>(null);
+
+  const explainMut = useMutation({
+    mutationFn: async () => {
+      setCatalogExplainError(null);
+      const res = await request("/api/assist/catalog-explain", {
+        method: "POST",
+        body: JSON.stringify({ repositoryId: id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || data.message || "assist_failed");
+      return data as { explanation: string; recommendedActions: string[]; source: string };
+    },
+    onSuccess: (data) => setCatalogExplain(data),
+    onError: (err) =>
+      setCatalogExplainError(err instanceof Error ? err.message : "assist_failed"),
+  });
+
   if (q.isLoading) {
     return (
       <AppPage variant="catalog">
@@ -250,6 +275,30 @@ export function CatalogRepositoryDetailPage() {
               )}
             </Group>
           ) : undefined
+        }
+      />
+
+      <AiAssistPanel
+        lead="Diagnose freshness, ownership, and scorecard gaps — with concrete catalog actions."
+        label="Explain scorecard / health"
+        loading={explainMut.isPending}
+        error={catalogExplainError}
+        onSuggest={() => explainMut.mutate()}
+        source={catalogExplain?.source}
+        suggestion={
+          catalogExplain ? (
+            <>
+              <Text size="sm">{catalogExplain.explanation}</Text>
+              <Text size="sm" fw={600}>
+                Recommended actions
+              </Text>
+              <List size="sm">
+                {catalogExplain.recommendedActions.map((a) => (
+                  <List.Item key={a}>{a}</List.Item>
+                ))}
+              </List>
+            </>
+          ) : null
         }
       />
 

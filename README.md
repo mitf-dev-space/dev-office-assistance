@@ -8,7 +8,7 @@ It combines leadership triage, planning, developer/team management, standups, de
 - Core setup and workflows: this README
 - Environment variable reference: [`docs/ENVIRONMENT.md`](docs/ENVIRONMENT.md)
 - API route overview by domain: [`docs/API_OVERVIEW.md`](docs/API_OVERVIEW.md)
-- **Forge module:** [`docs/forge/README.md`](docs/forge/README.md) — Flutter build portal (roles `forge_admin`, `forge_pm`)
+- **Forge module:** [`docs/forge/README.md`](docs/forge/README.md) — Flutter build portal (role `forge_mobile_lead`; shared-folder PM delivery)
 
 ## Current scope
 
@@ -93,10 +93,9 @@ After `npm run db:seed`, these users exist:
 |------|-------------------|
 | `lead@local.dev` | `lead` |
 | `assistant@local.dev` | `ChangeMe!Asst1` |
-| `forge-admin@local.dev` | `ForgeAdmin1!` (Forge catalog admin) |
-| `pm@local.dev` | `ForgePm1!` (Forge PM — request builds) |
+| `forge-mobile-lead@local.dev` | `ForgeMobileLead1!` (Forge mobile lead — builds + settings) |
 
-- Override defaults during seed with `SEED_LEAD_PASSWORD`, `SEED_ASSISTANT_PASSWORD`, `SEED_FORGE_ADMIN_PASSWORD`, and `SEED_FORGE_PM_PASSWORD`.
+- Override defaults during seed with `SEED_LEAD_PASSWORD`, `SEED_ASSISTANT_PASSWORD`, and `SEED_FORGE_MOBILE_LEAD_PASSWORD` (legacy `SEED_FORGE_ADMIN_PASSWORD` still accepted).
 - Seeded/admin-created users must complete first login by changing password (`mustChangePassword`) and setting authenticator-based MFA (TOTP).
 - App sessions use local JWT auth backed by PostgreSQL user records.
 

@@ -2,6 +2,7 @@ import type { ForgeBuildStatus, ForgePlatform, Prisma } from "@prisma/client";
 import { prisma } from "../../db.js";
 import type { ParsedListQuery } from "../../lib/listQuery.js";
 import type { CreateForgeBuildRequestInput } from "../schemas/buildRequestSchemas.js";
+import { resolveApplicationSharedPath } from "../sharedDeliveryPath.js";
 import { refreshBuildRequestOverallStatus } from "./platformBuildService.js";
 
 export type ForgeBuildListFilters = {
@@ -73,6 +74,7 @@ export async function createForgeBuildRequest(
 ) {
   const application = await prisma.forgeApplication.findFirst({
     where: { id: input.applicationId, isActive: true, bank: { isActive: true } },
+    include: { bank: true },
   });
   if (!application) {
     throw new Error("application_not_found");
@@ -83,6 +85,22 @@ export async function createForgeBuildRequest(
   });
   if (!profile) {
     throw new Error("profile_not_found");
+  }
+
+  const publishToSharedFolder = Boolean(input.publishToSharedFolder);
+  const notifyEmail = input.notifyEmail?.trim() || null;
+  if (publishToSharedFolder) {
+    if (!notifyEmail) throw new Error("notify_email_required");
+    let sharedRoot: string | null = null;
+    try {
+      sharedRoot = resolveApplicationSharedPath({
+        applicationPath: application.sharedDeliveryPath,
+        bankPath: application.bank.sharedDeliveryPath,
+      });
+    } catch {
+      throw new Error("invalid_shared_delivery_path");
+    }
+    if (!sharedRoot) throw new Error("shared_delivery_path_required");
   }
 
   const platforms: ForgePlatform[] = [];
@@ -104,6 +122,9 @@ export async function createForgeBuildRequest(
       gitReferenceType: input.gitReferenceType,
       gitReference: input.gitReference,
       requestNote: input.requestNote,
+      publishToSharedFolder,
+      notifyEmail: publishToSharedFolder ? notifyEmail : null,
+      sharedDeliveryStatus: publishToSharedFolder ? "pending" : null,
       overallStatus: "Queued",
       platformBuilds: {
         create: platforms.map((platform) => ({

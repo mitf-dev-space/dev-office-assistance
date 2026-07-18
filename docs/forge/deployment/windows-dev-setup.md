@@ -22,7 +22,6 @@ Portal development does not require Flutter. Real APK builds require Flutter + A
 
 | Email | Role | Default password |
 |-------|------|------------------|
-| `forge-admin@local.dev` | `forge_admin` | `ForgeAdmin1!` |
-| `pm@local.dev` | `forge_pm` | `ForgePm1!` |
+| `forge-mobile-lead@local.dev` | `forge_mobile_lead` | `ForgeMobileLead1!` |
 
-Override via `SEED_FORGE_ADMIN_PASSWORD` and `SEED_FORGE_PM_PASSWORD`.
+Override via `SEED_FORGE_MOBILE_LEAD_PASSWORD` (legacy `SEED_FORGE_ADMIN_PASSWORD` accepted).

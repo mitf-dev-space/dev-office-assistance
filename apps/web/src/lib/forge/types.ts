@@ -19,6 +19,8 @@ export type ForgeApplicationDto = {
   androidEnabled: boolean;
   iosEnabled: boolean;
   isActive: boolean;
+  sharedDeliveryPath: string | null;
+  bankSharedDeliveryPath: string | null;
   profileCount: number;
   buildCount: number;
   createdAt: string;
@@ -52,6 +54,9 @@ export type ForgeCatalogApplicationDto = {
   defaultBranch: string;
   androidEnabled: boolean;
   iosEnabled: boolean;
+  sharedDeliveryPath: string | null;
+  bankSharedDeliveryPath: string | null;
+  resolvedSharedDeliveryPath: string | null;
   profiles: Array<{
     id: string;
     name: string;
@@ -66,6 +71,12 @@ export type ForgeBuildRequestDetailDto = {
   gitReferenceType: string;
   gitReference: string;
   requestNote: string | null;
+  publishToSharedFolder: boolean;
+  notifyEmail: string | null;
+  sharedDeliveryPath: string | null;
+  sharedDeliveryFileName: string | null;
+  sharedDeliveryStatus: string | null;
+  sharedDeliveryError: string | null;
   createdAt: string;
   startedAtUtc: string | null;
   completedAtUtc: string | null;

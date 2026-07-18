@@ -4,6 +4,8 @@ import type { CatalogEnvSlice } from "../providers/factory.js";
 import type { Env } from "../../env.js";
 import { processExternalWorkJob } from "../../jobs/externalWorkWorker.js";
 import { JOB_KINDS } from "../../externalWork/constants.js";
+import { isInsightJobKind } from "../../insights/constants.js";
+import { processInsightJob } from "../../insights/runInsightJob.js";
 
 const LEASE_MS = 60_000;
 
@@ -75,6 +77,11 @@ export async function processBackgroundJob(
   ) {
     if (!fullEnv) throw new Error("full env required for external work jobs");
     await processExternalWorkJob(prisma, fullEnv, job);
+    return;
+  }
+  if (isInsightJobKind(job.kind)) {
+    if (!fullEnv) throw new Error("full env required for insight jobs");
+    await processInsightJob(prisma, fullEnv, job);
     return;
   }
   throw new Error(`Unknown job kind: ${job.kind}`);

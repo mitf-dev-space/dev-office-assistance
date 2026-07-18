@@ -158,7 +158,7 @@ Token stored encrypted; API never returns the raw PAT. Tasks land in shared `Ext
 
 ## Forge module
 
-Requires JWT. Roles: `forge_pm` and `forge_admin` (and `lead`) for access; admin routes require `forge_admin` or `lead`.
+Requires JWT. Roles: `forge_mobile_lead` and `lead` for access; admin routes (banks/apps/profiles/runners) require the same.
 
 ### PM / dashboard (forge access)
 
@@ -189,7 +189,7 @@ See [docs/forge/CONTRACT.md](./forge/CONTRACT.md).
 
 ## Engineering Catalog
 
-Requires JWT. Read: `lead`, `assistant`, `member`, `forge_admin`, `forge_pm`. Write/admin: `lead` only.
+Requires JWT. Read: `lead`, `assistant`, `member`, `forge_mobile_lead`. Write/admin: `lead` only.
 
 ### Overview & catalog entities
 

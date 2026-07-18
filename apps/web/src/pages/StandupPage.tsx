@@ -1,10 +1,11 @@
 import { useEffect, useId, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { StandupCheckInDto, StandupWeekResponseDto } from "@office/types";
-import { Textarea, SimpleGrid, Paper, Text, Badge } from "@mantine/core";
+import { Textarea, SimpleGrid, Paper, Text, Badge, List } from "@mantine/core";
 import { useAuth } from "../auth/AuthContext";
 import { useApi } from "../useApi";
 import { PageHeader } from "../components/PageHeader";
+import { AiAssistPanel } from "../components/ai/AiAssistPanel";
 
 function isSaved(entry: StandupCheckInDto) {
   return !entry.id.startsWith("placeholder-");
@@ -40,6 +41,13 @@ export function StandupPage() {
   const [priorWork, setPriorWork] = useState("");
   const [nextWork, setNextWork] = useState("");
   const [blockers, setBlockers] = useState("");
+  const [digest, setDigest] = useState<{
+    digest: string;
+    themes: string[];
+    blockers: string[];
+    source: string;
+  } | null>(null);
+  const [digestError, setDigestError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!meEntry) return;
@@ -70,6 +78,30 @@ export function StandupPage() {
     },
   });
 
+  const digestMut = useMutation({
+    mutationFn: async () => {
+      setDigestError(null);
+      const res = await request("/api/assist/standup-digest", {
+        method: "POST",
+        body: JSON.stringify(
+          listQuery.data?.weekStart
+            ? { weekStart: listQuery.data.weekStart }
+            : {},
+        ),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || data.message || "assist_failed");
+      return data as {
+        digest: string;
+        themes: string[];
+        blockers: string[];
+        source: string;
+      };
+    },
+    onSuccess: (data) => setDigest(data),
+    onError: (err) => setDigestError(err instanceof Error ? err.message : "assist_failed"),
+  });
+
   const entries = listQuery.data?.entries ?? [];
   const weekLabel = listQuery.data?.weekLabel ?? "";
 
@@ -79,6 +111,41 @@ export function StandupPage() {
         eyebrow="Ops"
         title="Leadership check-in"
         lead="A lightweight weekly sync for the two account holders: what moved, what is next, and what is blocked. It does not replace your triage queue."
+      />
+
+      <AiAssistPanel
+        lead="Turn this week’s check-ins into a short leadership digest you can paste into notes."
+        label="Draft weekly digest"
+        loading={digestMut.isPending}
+        error={digestError}
+        onSuggest={() => digestMut.mutate()}
+        source={digest?.source}
+        suggestion={
+          digest ? (
+            <>
+              <Text size="sm" style={{ whiteSpace: "pre-wrap" }}>
+                {digest.digest}
+              </Text>
+              {digest.themes.length > 0 ? (
+                <Text size="sm">
+                  Themes: <strong>{digest.themes.join(", ")}</strong>
+                </Text>
+              ) : null}
+              {digest.blockers.length > 0 ? (
+                <>
+                  <Text size="sm" fw={600}>
+                    Blockers
+                  </Text>
+                  <List size="sm">
+                    {digest.blockers.map((b) => (
+                      <List.Item key={b}>{b}</List.Item>
+                    ))}
+                  </List>
+                </>
+              ) : null}
+            </>
+          ) : null
+        }
       />
 
       <details className="app-filters-disclosure app-filters-disclosure--standup-week">
