@@ -13,7 +13,7 @@ export async function requireForgeAccess(
   if (!canAccessForge(me.role)) {
     await reply.status(403).send({
       error: "forbidden",
-      message: "Forge access requires forge_pm, forge_admin, or lead role.",
+      message: "Forge access requires forge_mobile_lead or lead role.",
     });
     return null;
   }
@@ -31,7 +31,7 @@ export async function requireForgeAdmin(
   if (!canAdminForge(me.role)) {
     await reply.status(403).send({
       error: "forbidden",
-      message: "Forge administration requires forge_admin or lead role.",
+      message: "Forge administration requires forge_mobile_lead or lead role.",
     });
     return null;
   }

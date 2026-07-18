@@ -1,22 +1,24 @@
 # Forge — system context
 
-Forge inside Helm connects **project managers**, **forge administrators**, and **host build workers** for demo Flutter mobile builds across Masarat bank applications.
+Forge inside Helm connects the **mobile team lead**, Helm **lead**, **host build workers**, and a **shared delivery folder** for PM handoff (no PM Helm login).
 
-See [system-context diagram](./system-context.md) in prior standalone draft — stakeholders: PMs, admins, mobile devs (profile config), workers, security/compliance.
+**In scope:** Build automation for existing Flutter repos via approved branches, flavors, and profiles; opt-in copy of APKs to a bank/app shared folder with email notify.
 
-**In scope:** Build automation for existing Flutter repos via approved branches, flavors, and profiles.
-
-**Out of scope (MVP):** AI-generated screens, TestFlight, Firebase App Distribution.
+**Out of scope (MVP):** AI-generated screens, TestFlight, Firebase App Distribution, emailing APK attachments.
 
 ```mermaid
 flowchart TB
-  PM["forge_pm users"]
-  Admin["forge_admin / lead"]
+  MobileLead["forge_mobile_lead"]
+  Lead["lead"]
+  SharedFolder["Shared delivery folder"]
   Helm["Helm API + Web"]
   Git["GitLab / GitHub"]
   Worker["Host forge-worker"]
-  PM --> Helm
-  Admin --> Helm
+  PmEmail["PM notify email"]
+  MobileLead --> Helm
+  Lead --> Helm
   Worker --> Helm
   Worker --> Git
+  Helm --> SharedFolder
+  Helm --> PmEmail
 ```

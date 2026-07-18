@@ -41,6 +41,10 @@ import {
   CatalogSyncPage,
   CatalogRegisterRepositoryPage,
 } from "./pages/catalog/CatalogImportsPage";
+import { AiSettingsPage } from "./pages/AiSettingsPage";
+import { AskHelmChatPage } from "./pages/AskHelmChatPage";
+import { AiReviewQueuePage } from "./pages/AiReviewQueuePage";
+import { InsightsPage } from "./pages/InsightsPage";
 
 function DashboardRoute() {
   const { user } = useAuth();
@@ -91,9 +95,14 @@ export default function App() {
           <Route path="/teams" element={<Navigate to="/team-management" replace />} />
           <Route path="/priority" element={<PriorityPage />} />
           <Route path="/standup" element={<StandupPage />} />
+          <Route path="/insights" element={<InsightsPage />} />
           <Route path="/decisions" element={<DecisionsPage />} />
           <Route path="/apps" element={<AppsIndexPage />} />
           <Route path="/apps/registration" element={<AppRegistrationsPage />} />
+          <Route path="/apps/ai" element={<AiSettingsPage />} />
+          <Route path="/apps/ai/chat" element={<AskHelmChatPage />} />
+          <Route path="/apps/ai/review" element={<AiReviewQueuePage />} />
+          <Route path="/settings/ai" element={<AiSettingsPage />} />
           <Route path="/apps/outlook" element={<OutlookPage />} />
           <Route path="/apps/todo" element={<TodoPage />} />
           <Route path="/apps/clickup" element={<ClickUpPage />} />

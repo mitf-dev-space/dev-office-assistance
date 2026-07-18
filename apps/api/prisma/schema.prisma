@@ -98,6 +98,9 @@ model User {
   auditEvents                AuditEvent[]
   clickUpConnectionsCreated  ClickUpConnection[]     @relation("ClickUpConnectionCreatedBy")
   clickUpConnectionsUpdated  ClickUpConnection[]     @relation("ClickUpConnectionUpdatedBy")
+  aiActionProposalsCreated   AiActionProposal[]      @relation("AiActionProposalCreatedBy")
+  aiActionProposalsReviewed  AiActionProposal[]      @relation("AiActionProposalReviewedBy")
+  llmWorkspaceSettingsUpdated LlmWorkspaceSettings[]
 }
 
 /// Roster entry: no login. Grouped in teams on Team management; assignable in triage.
@@ -471,6 +474,8 @@ model ForgeBank {
   name                 String
   code                 String                @unique
   isActive             Boolean               @default(true)
+  /// UNC/mapped folder default for PM shared delivery (API host must write here).
+  sharedDeliveryPath   String?               @map("shared_delivery_path")
   createdAt            DateTime              @default(now())
   updatedAt            DateTime              @updatedAt
   applications         ForgeApplication[]
@@ -495,6 +500,8 @@ model ForgeApplication {
   androidEnabled          Boolean             @default(true)
   iosEnabled              Boolean             @default(true)
   isActive                Boolean             @default(true)
+  /// Optional override of bank.sharedDeliveryPath for this application.
+  sharedDeliveryPath      String?             @map("shared_delivery_path")
   catalogApplicationId    String?             @map("catalog_application_id")
   catalogApplication      CatalogApplication? @relation(fields: [catalogApplicationId], references: [id], onDelete: SetNull)
   repositoryId            String?             @map("repository_id")
@@ -531,23 +538,32 @@ model ForgeBuildProfile {
 }
 
 model ForgeBuildRequest {
-  id                String               @id @default(uuid())
-  applicationId     String
-  application       ForgeApplication     @relation(fields: [applicationId], references: [id])
-  buildProfileId    String
-  buildProfile      ForgeBuildProfile    @relation(fields: [buildProfileId], references: [id])
-  requestedById     String
-  requestedBy       User                 @relation(fields: [requestedById], references: [id])
-  gitReferenceType  String               @default("branch")
-  gitReference      String
-  resolvedCommitSha String?
-  requestNote       String?
-  overallStatus     ForgeBuildStatus     @default(Queued)
-  createdAt         DateTime             @default(now())
-  updatedAt         DateTime             @updatedAt
-  startedAtUtc      DateTime?
-  completedAtUtc    DateTime?
-  platformBuilds    ForgePlatformBuild[]
+  id                      String               @id @default(uuid())
+  applicationId           String
+  application             ForgeApplication     @relation(fields: [applicationId], references: [id])
+  buildProfileId          String
+  buildProfile            ForgeBuildProfile    @relation(fields: [buildProfileId], references: [id])
+  requestedById           String
+  requestedBy             User                 @relation(fields: [requestedById], references: [id])
+  gitReferenceType        String               @default("branch")
+  gitReference            String
+  resolvedCommitSha       String?
+  requestNote             String?
+  /// When true, copy successful artifacts to the bank/app shared folder and email PM + mobile leads.
+  publishToSharedFolder   Boolean              @default(false) @map("publish_to_shared_folder")
+  /// External PM email (no Helm login) — required when publishToSharedFolder is true.
+  notifyEmail             String?              @map("notify_email")
+  sharedDeliveryPath      String?              @map("shared_delivery_path")
+  sharedDeliveryFileName  String?              @map("shared_delivery_file_name")
+  /// pending | copied | failed | skipped
+  sharedDeliveryStatus    String?              @map("shared_delivery_status")
+  sharedDeliveryError     String?              @map("shared_delivery_error") @db.Text
+  overallStatus           ForgeBuildStatus     @default(Queued)
+  createdAt               DateTime             @default(now())
+  updatedAt               DateTime             @updatedAt
+  startedAtUtc            DateTime?
+  completedAtUtc          DateTime?
+  platformBuilds          ForgePlatformBuild[]
 
   @@index([applicationId])
   @@index([requestedById])
@@ -1325,6 +1341,77 @@ model BackgroundJob {
   createdAt      DateTime            @default(now())
 
   @@index([status, scheduledFor])
+}
+
+/// Singleton workspace LLM config (not BYOK). Interactive assist + background insights share this key.
+model LlmWorkspaceSettings {
+  id             String   @id @default("default")
+  enabled        Boolean  @default(false)
+  providerPreset String   @default("lmstudio") @map("provider_preset")
+  baseUrl        String   @default("http://localhost:1234/v1") @map("base_url")
+  model          String   @default("google/gemma-4-e4b")
+  apiKeyCipher   String?  @map("api_key_cipher") @db.Text
+  apiKeyHint     String?  @map("api_key_hint") @db.VarChar(32)
+  assistLocale   String   @default("en") @map("assist_locale")
+  dailyCap       Int      @default(200) @map("daily_cap")
+  lastTestedAt   DateTime? @map("last_tested_at")
+  lastTestOk     Boolean?  @map("last_test_ok")
+  updatedById    String?   @map("updated_by_id")
+  updatedBy      User?     @relation(fields: [updatedById], references: [id], onDelete: SetNull)
+  updatedAt      DateTime  @updatedAt
+  createdAt      DateTime  @default(now())
+}
+
+enum InsightSnapshotKind {
+  weekly_ops
+  catalog_health
+  forge_builds
+  morning_brief
+  blocker_radar
+}
+
+enum InsightSnapshotStatus {
+  pending
+  ready
+  failed
+}
+
+/// Durable metrics (+ optional LLM narrative) from background insight jobs.
+model InsightSnapshot {
+  id          String                @id @default(uuid())
+  kind        InsightSnapshotKind
+  periodStart DateTime              @map("period_start")
+  periodEnd   DateTime              @map("period_end")
+  metrics     Json
+  narrative   Json?
+  llmUsed     Boolean               @default(false) @map("llm_used")
+  status      InsightSnapshotStatus @default(pending)
+  error       String?               @db.Text
+  createdAt   DateTime              @default(now()) @map("created_at")
+
+  @@index([kind, createdAt])
+  @@index([status, createdAt])
+}
+
+/// Staged AI write proposals — lead must approve before external/side effects.
+model AiActionProposal {
+  id           String    @id @default(uuid())
+  kind         String
+  status       String    @default("pending")
+  title        String
+  summary      String    @db.Text
+  payload      Json
+  result       Json?
+  createdById  String?   @map("created_by_id")
+  createdBy    User?     @relation("AiActionProposalCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  reviewedById String?   @map("reviewed_by_id")
+  reviewedBy   User?     @relation("AiActionProposalReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
+  createdAt    DateTime  @default(now()) @map("created_at")
+  reviewedAt   DateTime? @map("reviewed_at")
+
+  @@index([status, createdAt])
+  @@index([kind, createdAt])
+  @@map("AiActionProposal")
 }
 
 model AuditEvent {

@@ -2,6 +2,7 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "../../db.js";
 import type { ParsedListQuery } from "../../lib/listQuery.js";
 import type { CreateForgeBankInput, UpdateForgeBankInput } from "../schemas/bankSchemas.js";
+import { normalizeSharedDeliveryPath } from "../sharedDeliveryPath.js";
 
 function buildBankWhere(pq: ParsedListQuery): Prisma.ForgeBankWhereInput {
   if (!pq.q) return {};
@@ -34,6 +35,10 @@ export async function createForgeBank(input: CreateForgeBankInput) {
       name: input.name,
       code: input.code.toUpperCase(),
       isActive: input.isActive ?? true,
+      sharedDeliveryPath:
+        input.sharedDeliveryPath === undefined
+          ? undefined
+          : normalizeSharedDeliveryPath(input.sharedDeliveryPath),
     },
   });
 }
@@ -45,6 +50,9 @@ export async function updateForgeBank(id: string, input: UpdateForgeBankInput) {
       ...(input.name !== undefined ? { name: input.name } : {}),
       ...(input.code !== undefined ? { code: input.code.toUpperCase() } : {}),
       ...(input.isActive !== undefined ? { isActive: input.isActive } : {}),
+      ...(input.sharedDeliveryPath !== undefined
+        ? { sharedDeliveryPath: normalizeSharedDeliveryPath(input.sharedDeliveryPath) }
+        : {}),
     },
   });
 }

@@ -72,6 +72,15 @@ First install / postgres recreate: use `--mode full`.
 - API http://10.100.235.21:46811/health/ready → 200  
 - Checklist: [verification-checklist.md](./verification-checklist.md)
 
+### Post-upgrade notes (Forge / email)
+
+After migrate completes on this release:
+
+1. Confirm `prisma migrate deploy` applied `*_forge_mobile_lead_shared_delivery` (and any AI insight migrations).
+2. Existing `forge_admin` / `forge_pm` roles are migrated to `forge_mobile_lead` by the migration/seed path — create a real production mobile-lead user (do not rely on seed passwords).
+3. Set SMTP on the server `.env.production` (`SMTP_HOST` + `SMTP_FROM` minimum) so Forge success emails (leads + optional PM) and failure emails (mobile lead only) send with Helm branding.
+4. Optional: set bank/app shared delivery paths in Forge admin UI after login.
+
 ---
 
 ## Rollback

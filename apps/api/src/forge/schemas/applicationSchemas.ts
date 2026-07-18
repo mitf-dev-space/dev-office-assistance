@@ -12,6 +12,7 @@ export const createForgeApplicationSchema = z.object({
   androidEnabled: z.boolean().optional().default(true),
   iosEnabled: z.boolean().optional().default(false),
   isActive: z.boolean().optional().default(true),
+  sharedDeliveryPath: z.union([z.string().trim().max(1000), z.null()]).optional(),
 });
 
 export const updateForgeApplicationSchema = createForgeApplicationSchema

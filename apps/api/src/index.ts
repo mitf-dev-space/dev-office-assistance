@@ -27,15 +27,21 @@ import { registerM365IntegrationsRoutes } from "./routes/m365Integrations.js";
 import { registerForgeUserRoutes } from "./routes/forge/userRoutes.js";
 import { registerForgeWorkerRoutes } from "./routes/forge/workerRoutes.js";
 import { registerCatalogRoutes, registerCatalogWebhookRoutes } from "./routes/catalogRoutes.js";
+import { registerLlmSettingsRoutes } from "./routes/llmSettings.js";
+import { registerAssistRoutes } from "./routes/assist.js";
+import { registerAiProposalRoutes } from "./routes/aiProposals.js";
+import { registerInsightsRoutes } from "./routes/insights.js";
 import { startCatalogWorker } from "./catalog/jobs/worker.js";
 import {
   startClickUpScheduler,
   startMicrosoftTodoScheduler,
 } from "./jobs/externalWorkWorker.js";
+import { startInsightsScheduler } from "./insights/runInsightJob.js";
 import { seedCatalogInventory } from "./catalog/seed/inventorySeed.js";
 import { seedConnectionTokensFromEnv } from "./catalog/seed/connectionTokens.js";
 import { seedHelmGithubRepository } from "./catalog/seed/helmGithubRepository.js";
 import { seedClickUpTokenFromEnv } from "./clickup/connectionService.js";
+import { seedOpenRouterFromEnv } from "./llm/seedOpenRouterFromEnv.js";
 import { prisma } from "./db.js";
 import { ensureUploadDir } from "./upload/storage.js";
 
@@ -150,17 +156,23 @@ export async function buildServer() {
     await registerClickUpRoutes(inner, env);
     await registerForgeUserRoutes(inner, env);
     await registerCatalogRoutes(inner, env);
+    await registerLlmSettingsRoutes(inner, env);
+    await registerAssistRoutes(inner, env);
+    await registerAiProposalRoutes(inner);
+    await registerInsightsRoutes(inner, env);
   });
 
   startCatalogWorker(prisma, catalogEnvFrom(env), env);
   startClickUpScheduler(prisma, env);
   startMicrosoftTodoScheduler(prisma, env);
+  startInsightsScheduler(prisma, env);
 
   try {
     await seedCatalogInventory(prisma);
     await seedConnectionTokensFromEnv(prisma, env);
     await seedHelmGithubRepository(prisma, catalogEnvFrom(env));
     await seedClickUpTokenFromEnv(prisma, env);
+    await seedOpenRouterFromEnv(prisma, env);
   } catch (err) {
     app.log.warn({ err }, "Catalog inventory startup seed failed (non-fatal)");
   }

@@ -40,6 +40,45 @@ export function AppsIndexPage() {
         )}
       </p>
       <ul className="card" style={{ listStyle: "none", margin: 0, padding: "1rem 1.25rem" }}>
+        <li
+          style={{
+            borderBottom: "1px solid var(--color-border)",
+            padding: "0.75rem 0",
+          }}
+        >
+          <Link to="/apps/ai" style={{ fontWeight: 600 }}>
+            Workspace AI
+          </Link>
+          <p className="muted" style={{ margin: "0.35rem 0 0", fontSize: "0.9rem" }}>
+            Configure LM Studio or OpenRouter for assist buttons and background insights.
+          </p>
+        </li>
+        <li
+          style={{
+            borderBottom: "1px solid var(--color-border)",
+            padding: "0.75rem 0",
+          }}
+        >
+          <Link to="/apps/ai/chat" style={{ fontWeight: 600 }}>
+            Ask Helm
+          </Link>
+          <p className="muted" style={{ margin: "0.35rem 0 0", fontSize: "0.9rem" }}>
+            Natural-language questions over triage, briefs, blockers, planning, and catalog gaps.
+          </p>
+        </li>
+        <li
+          style={{
+            borderBottom: "1px solid var(--color-border)",
+            padding: "0.75rem 0",
+          }}
+        >
+          <Link to="/apps/ai/review" style={{ fontWeight: 600 }}>
+            AI review queue
+          </Link>
+          <p className="muted" style={{ margin: "0.35rem 0 0", fontSize: "0.9rem" }}>
+            Approve or reject staged AI write proposals before they apply.
+          </p>
+        </li>
         {showForge && (
           <li
             style={{

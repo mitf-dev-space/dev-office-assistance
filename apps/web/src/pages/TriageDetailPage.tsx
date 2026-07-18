@@ -12,6 +12,8 @@ import { getM365Pca } from "../integrations/m365PublicClient";
 import { MsalInitializer } from "../integrations/MsalInitializer";
 import { PageHeader } from "../components/PageHeader";
 import { TriageDetailPageSkeleton } from "../components/skeletons/AppSkeletons";
+import { AiAssistPanel } from "../components/ai/AiAssistPanel";
+import { List, Text } from "@mantine/core";
 
 function formatSize(n: number) {
   if (n < 1024) return `${n} B`;
@@ -90,6 +92,23 @@ function TriageDetailInner({
   const [assigneeDeveloperId, setAssigneeDeveloperId] = useState("");
   const [program, setProgram] = useState("");
   const [escalated, setEscalated] = useState(false);
+  const [summaryResult, setSummaryResult] = useState<{
+    summary: string;
+    bullets: string[];
+    source: string;
+  } | null>(null);
+  const [nextActionResult, setNextActionResult] = useState<{
+    nextAction: string;
+    suggestedPriority: string;
+    rationale: string;
+    source: string;
+  } | null>(null);
+  const [dupResult, setDupResult] = useState<{
+    likelyDuplicates: Array<{ id: string; title: string; status: string; score: number; href: string }>;
+    recommendation: string;
+    source: string;
+  } | null>(null);
+  const [assistError, setAssistError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!it) return;
@@ -170,6 +189,86 @@ function TriageDetailInner({
     },
   });
 
+  const summarizeMut = useMutation({
+    mutationFn: async () => {
+      setAssistError(null);
+      const res = await request("/api/assist/triage-summarize", {
+        method: "POST",
+        body: JSON.stringify({ triageItemId: id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || data.message || "assist_failed");
+      return data as { summary: string; bullets: string[]; source: string };
+    },
+    onSuccess: (data) => setSummaryResult(data),
+    onError: (err) => setAssistError(err instanceof Error ? err.message : "assist_failed"),
+  });
+
+  const nextActionMut = useMutation({
+    mutationFn: async () => {
+      setAssistError(null);
+      const res = await request("/api/assist/triage-next-action", {
+        method: "POST",
+        body: JSON.stringify({ triageItemId: id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || data.message || "assist_failed");
+      return data as {
+        nextAction: string;
+        suggestedPriority: string;
+        rationale: string;
+        source: string;
+      };
+    },
+    onSuccess: (data) => setNextActionResult(data),
+    onError: (err) => setAssistError(err instanceof Error ? err.message : "assist_failed"),
+  });
+
+  const dupMut = useMutation({
+    mutationFn: async () => {
+      setAssistError(null);
+      const res = await request("/api/assist/triage-duplicates", {
+        method: "POST",
+        body: JSON.stringify({ triageItemId: id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || data.message || "assist_failed");
+      return data as {
+        likelyDuplicates: Array<{
+          id: string;
+          title: string;
+          status: string;
+          score: number;
+          href: string;
+        }>;
+        recommendation: string;
+        source: string;
+      };
+    },
+    onSuccess: (data) => setDupResult(data),
+    onError: (err) => setAssistError(err instanceof Error ? err.message : "assist_failed"),
+  });
+
+  const queueCancelDupMut = useMutation({
+    mutationFn: async (duplicateId: string) => {
+      const res = await request("/api/assist/proposals", {
+        method: "POST",
+        body: JSON.stringify({
+          kind: "triage_cancel_duplicate",
+          title: `Cancel duplicate triage`,
+          summary: `Cancel ${duplicateId} as duplicate of ${id}`,
+          payload: {
+            triageItemId: duplicateId,
+            note: `Cancelled as duplicate of ${id}`,
+          },
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "proposal_failed");
+      return data;
+    },
+  });
+
   if (itemQuery.isLoading) {
     return <TriageDetailPageSkeleton />;
   }
@@ -203,6 +302,98 @@ function TriageDetailInner({
         eyebrow="Triage"
         title={title}
         lead="Update status, owner, and dates. Add files (screenshots, PDFs, voice notes) for context."
+      />
+      <AiAssistPanel
+        lead="Summarize the item, propose a next action, or check for likely duplicates."
+        error={assistError}
+        actions={[
+          {
+            label: "Summarize",
+            loading: summarizeMut.isPending,
+            onSuggest: () => {
+              setNextActionResult(null);
+              setDupResult(null);
+              summarizeMut.mutate();
+            },
+          },
+          {
+            label: "Suggest next action",
+            loading: nextActionMut.isPending,
+            onSuggest: () => {
+              setSummaryResult(null);
+              setDupResult(null);
+              nextActionMut.mutate();
+            },
+          },
+          {
+            label: "Find duplicates",
+            loading: dupMut.isPending,
+            onSuggest: () => {
+              setSummaryResult(null);
+              setNextActionResult(null);
+              dupMut.mutate();
+            },
+          },
+        ]}
+        source={dupResult?.source ?? nextActionResult?.source ?? summaryResult?.source ?? null}
+        suggestion={
+          dupResult ? (
+            <>
+              <Text size="sm">{dupResult.recommendation}</Text>
+              <List size="sm">
+                {dupResult.likelyDuplicates.map((d) => (
+                  <List.Item key={d.id}>
+                    <a href={d.href}>{d.title}</a> · {d.status} · score {d.score}{" "}
+                    <button
+                      type="button"
+                      className="btn btn-ghost"
+                      style={{ fontSize: "0.8rem" }}
+                      disabled={queueCancelDupMut.isPending}
+                      onClick={() => queueCancelDupMut.mutate(d.id)}
+                    >
+                      Queue cancel
+                    </button>
+                  </List.Item>
+                ))}
+              </List>
+              {queueCancelDupMut.isSuccess ? (
+                <Text size="xs" c="dimmed">
+                  Cancel proposal queued — approve on AI review queue.
+                </Text>
+              ) : null}
+            </>
+          ) : nextActionResult ? (
+            <>
+              <Text size="sm" fw={600}>
+                {nextActionResult.nextAction}
+              </Text>
+              <Text size="sm">
+                Suggested priority: <strong>{nextActionResult.suggestedPriority}</strong>
+              </Text>
+              <Text size="sm" c="dimmed">
+                {nextActionResult.rationale}
+              </Text>
+            </>
+          ) : summaryResult ? (
+            <>
+              <Text size="sm">{summaryResult.summary}</Text>
+              <List size="sm">
+                {summaryResult.bullets.map((b) => (
+                  <List.Item key={b}>{b}</List.Item>
+                ))}
+              </List>
+            </>
+          ) : null
+        }
+        onAccept={
+          nextActionResult && !dupResult
+            ? () => {
+                setNextAction(nextActionResult.nextAction);
+                setNextActionResult(null);
+              }
+            : undefined
+        }
+        acceptLabel="Apply to next action field"
       />
       <div className="card">
         {it.sourceType === "outlook" && it.graphWebLink && (

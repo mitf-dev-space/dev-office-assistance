@@ -45,6 +45,7 @@ import {
 import { createForgeRunner, listForgeRunners } from "../../forge/services/runnerService.js";
 import { resolveArtifactReadPath } from "../../forge/services/artifactStorage.js";
 import { isSmtpConfigured, sendMail } from "../../mail/mailService.js";
+import { renderForgeEmailSamples } from "../../forge/services/buildNotificationService.js";
 import { prisma } from "../../db.js";
 import { parseListQuery, withPageMeta } from "../../lib/listQuery.js";
 import { z } from "zod";
@@ -61,6 +62,7 @@ function mapBank(row: ForgeBankRow) {
     name: row.name,
     code: row.code,
     isActive: row.isActive,
+    sharedDeliveryPath: row.sharedDeliveryPath,
     applicationCount: row._count.applications,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
@@ -83,6 +85,8 @@ function mapApplication(row: ForgeApplicationRow) {
     androidEnabled: row.androidEnabled,
     iosEnabled: row.iosEnabled,
     isActive: row.isActive,
+    sharedDeliveryPath: row.sharedDeliveryPath,
+    bankSharedDeliveryPath: row.bank.sharedDeliveryPath ?? null,
     profileCount: row._count.buildProfiles,
     buildCount: row._count.buildRequests,
     createdAt: row.createdAt.toISOString(),
@@ -129,6 +133,12 @@ function mapBuildRequestDetail(row: NonNullable<Awaited<ReturnType<typeof getFor
     gitReferenceType: row.gitReferenceType,
     gitReference: row.gitReference,
     requestNote: row.requestNote,
+    publishToSharedFolder: row.publishToSharedFolder,
+    notifyEmail: row.notifyEmail,
+    sharedDeliveryPath: row.sharedDeliveryPath,
+    sharedDeliveryFileName: row.sharedDeliveryFileName,
+    sharedDeliveryStatus: row.sharedDeliveryStatus,
+    sharedDeliveryError: row.sharedDeliveryError,
     createdAt: row.createdAt.toISOString(),
     startedAtUtc: row.startedAtUtc?.toISOString() ?? null,
     completedAtUtc: row.completedAtUtc?.toISOString() ?? null,
@@ -237,6 +247,9 @@ export async function registerForgeUserRoutes(app: FastifyInstance, env: Env) {
         defaultBranch: app.defaultBranch,
         androidEnabled: app.androidEnabled,
         iosEnabled: app.iosEnabled,
+        sharedDeliveryPath: app.sharedDeliveryPath,
+        bankSharedDeliveryPath: app.bank.sharedDeliveryPath,
+        resolvedSharedDeliveryPath: app.sharedDeliveryPath ?? app.bank.sharedDeliveryPath ?? null,
         profiles: app.buildProfiles.map((p) => ({
           id: p.id,
           name: p.name,
@@ -277,7 +290,13 @@ export async function registerForgeUserRoutes(app: FastifyInstance, env: Env) {
       if (msg === "application_not_found" || msg === "profile_not_found") {
         return reply.status(404).send({ error: msg });
       }
-      if (msg === "android_not_enabled" || msg === "ios_not_enabled") {
+      if (
+        msg === "android_not_enabled" ||
+        msg === "ios_not_enabled" ||
+        msg === "notify_email_required" ||
+        msg === "shared_delivery_path_required" ||
+        msg === "invalid_shared_delivery_path"
+      ) {
         return reply.status(400).send({ error: msg });
       }
       throw err;
@@ -346,12 +365,16 @@ export async function registerForgeUserRoutes(app: FastifyInstance, env: Env) {
           name: row.name,
           code: row.code,
           isActive: row.isActive,
+          sharedDeliveryPath: row.sharedDeliveryPath,
           applicationCount: 0,
           createdAt: row.createdAt.toISOString(),
           updatedAt: row.updatedAt.toISOString(),
         },
       });
     } catch (err) {
+      if (err instanceof Error && err.message.startsWith("invalid_shared_path")) {
+        return reply.status(400).send({ error: err.message });
+      }
       if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
         return reply.status(409).send({ error: "conflict", message: "A bank with this code already exists." });
       }
@@ -385,12 +408,16 @@ export async function registerForgeUserRoutes(app: FastifyInstance, env: Env) {
           name: row.name,
           code: row.code,
           isActive: row.isActive,
+          sharedDeliveryPath: row.sharedDeliveryPath,
           applicationCount: counts,
           createdAt: row.createdAt.toISOString(),
           updatedAt: row.updatedAt.toISOString(),
         },
       };
     } catch (err) {
+      if (err instanceof Error && err.message.startsWith("invalid_shared_path")) {
+        return reply.status(400).send({ error: err.message });
+      }
       if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
         return reply.status(409).send({ error: "conflict", message: "A bank with this code already exists." });
       }
@@ -420,8 +447,21 @@ export async function registerForgeUserRoutes(app: FastifyInstance, env: Env) {
       return reply.status(404).send({ error: "bank_not_found" });
     }
 
-    const row = await createForgeApplication(parsed.data);
-    return reply.status(201).send({ application: { id: row.id, name: row.name } });
+    try {
+      const row = await createForgeApplication(parsed.data);
+      return reply.status(201).send({
+        application: {
+          id: row.id,
+          name: row.name,
+          sharedDeliveryPath: row.sharedDeliveryPath,
+        },
+      });
+    } catch (err) {
+      if (err instanceof Error && err.message.startsWith("invalid_shared_path")) {
+        return reply.status(400).send({ error: err.message });
+      }
+      throw err;
+    }
   });
 
   app.put("/api/forge/applications/:id", async (request, reply) => {
@@ -438,8 +478,22 @@ export async function registerForgeUserRoutes(app: FastifyInstance, env: Env) {
       return reply.status(400).send({ error: "validation", details: parsed.error.flatten() });
     }
 
-    const row = await updateForgeApplication(id, parsed.data);
-    return { application: { id: row.id, name: row.name, isActive: row.isActive } };
+    try {
+      const row = await updateForgeApplication(id, parsed.data);
+      return {
+        application: {
+          id: row.id,
+          name: row.name,
+          isActive: row.isActive,
+          sharedDeliveryPath: row.sharedDeliveryPath,
+        },
+      };
+    } catch (err) {
+      if (err instanceof Error && err.message.startsWith("invalid_shared_path")) {
+        return reply.status(400).send({ error: err.message });
+      }
+      throw err;
+    }
   });
 
   app.get("/api/forge/build-profiles", async (request, reply) => {
@@ -547,27 +601,42 @@ export async function registerForgeUserRoutes(app: FastifyInstance, env: Env) {
     }
 
     const parsed = z
-      .object({ to: z.string().email().optional() })
+      .object({
+        to: z.string().email().optional(),
+        /** When true (default), send styled success + failure samples instead of a plain SMTP ping. */
+        samples: z.boolean().optional().default(true),
+      })
       .safeParse(request.body ?? {});
     if (!parsed.success) {
       return reply.status(400).send({ error: "validation", details: parsed.error.flatten() });
     }
 
     const to = parsed.data.to ?? me.email;
+    const baseUrl = env.APP_PUBLIC_URL?.replace(/\/$/, "") ?? "http://localhost:5174";
     try {
+      if (parsed.data.samples === false) {
+        await sendMail(env, {
+          to,
+          subject: "[Helm Forge] SMTP connectivity test",
+          text: `SMTP OK at ${new Date().toISOString()}`,
+        });
+        return { ok: true, to, kind: "connectivity" };
+      }
+
+      const samples = renderForgeEmailSamples(`${baseUrl}/forge/builds/sample`);
       await sendMail(env, {
         to,
-        subject: "[Forge] SMTP test — Masarat Helm",
-        text: [
-          "This is a test email from the Forge module in Masarat Helm.",
-          "",
-          `Sent to: ${to}`,
-          `Time (UTC): ${new Date().toISOString()}`,
-          "",
-          "If you received this, SMTP is configured correctly for build notifications.",
-        ].join("\n"),
+        subject: samples.success.subject,
+        text: samples.success.text,
+        html: samples.success.html,
       });
-      return { ok: true, to };
+      await sendMail(env, {
+        to,
+        subject: samples.failure.subject,
+        text: samples.failure.text,
+        html: samples.failure.html,
+      });
+      return { ok: true, to, kind: "samples", sent: ["success", "failure"] };
     } catch (err) {
       const message = err instanceof Error ? err.message : "send_failed";
       return reply.status(502).send({ error: "smtp_send_failed", message });

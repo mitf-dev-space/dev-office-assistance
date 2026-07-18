@@ -1,10 +1,12 @@
 import { Link } from "react-router-dom";
-import { Table } from "@mantine/core";
-import { useQuery } from "@tanstack/react-query";
+import { List, Table, Text } from "@mantine/core";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import type { PageMeta, TriageItemDto } from "@office/types";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useApi } from "../useApi";
 import { PageHeader } from "../components/PageHeader";
+import { AiAssistPanel } from "../components/ai/AiAssistPanel";
+import { BlockerRadarCard } from "../components/ai/BlockerRadarCard";
 import { DataTableSkeleton } from "../components/skeletons/AppSkeletons";
 import { AppDataTable } from "../components/ui/AppDataTable";
 import { ListQueryBar, TablePagination } from "../components/ui/ListQueryBar";
@@ -15,6 +17,33 @@ export function PriorityPage() {
   const { request } = useApi();
   const { page, setPage, limit, setLimit, searchInput, search, onSearchChange } =
     useListQueryState(25);
+  const [reorder, setReorder] = useState<{
+    orderedIds: string[];
+    rationale: string;
+    bullets: string[];
+    source: string;
+  } | null>(null);
+  const [reorderError, setReorderError] = useState<string | null>(null);
+
+  const reorderMut = useMutation({
+    mutationFn: async () => {
+      setReorderError(null);
+      const res = await request("/api/assist/priority-reorder", {
+        method: "POST",
+        body: "{}",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "assist_failed");
+      return data as {
+        orderedIds: string[];
+        rationale: string;
+        bullets: string[];
+        source: string;
+      };
+    },
+    onSuccess: (data) => setReorder(data),
+    onError: (err) => setReorderError(err instanceof Error ? err.message : "assist_failed"),
+  });
 
   const listUrl = useMemo(
     () => `/api/triage-items/priority-queue?${buildListQuery({ page, limit, q: search })}`,
@@ -43,6 +72,29 @@ export function PriorityPage() {
           <Link to="/triage/new" className="btn btn-primary">
             New triage
           </Link>
+        }
+      />
+
+      <BlockerRadarCard />
+
+      <AiAssistPanel
+        lead="Explain a leadership-useful order for the open priority queue (does not rewrite ranks)."
+        label="Explain reorder"
+        loading={reorderMut.isPending}
+        onSuggest={() => reorderMut.mutate()}
+        error={reorderError}
+        source={reorder?.source ?? null}
+        suggestion={
+          reorder ? (
+            <>
+              <Text size="sm">{reorder.rationale}</Text>
+              <List size="sm">
+                {reorder.bullets.map((b) => (
+                  <List.Item key={b}>{b}</List.Item>
+                ))}
+              </List>
+            </>
+          ) : null
         }
       />
 

@@ -12,6 +12,8 @@
 2. Sign in with a **non-default** production user  
 3. Dashboard loads without console CORS errors  
 4. One triage list read succeeds  
+5. Forge: mobile-lead can open banks/apps; shared delivery path editable  
+6. Optional: `POST /api/forge/admin/test-email` with `{ "samples": true }` if SMTP configured
 
 ## Coexistence
 

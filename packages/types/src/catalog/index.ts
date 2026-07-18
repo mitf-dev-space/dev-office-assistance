@@ -335,7 +335,12 @@ export type CatalogOverviewDto = {
 };
 
 export function canAccessCatalog(role: string): boolean {
-  return role === "lead" || role === "assistant" || role === "member" || role === "forge_admin" || role === "forge_pm";
+  return (
+    role === "lead" ||
+    role === "assistant" ||
+    role === "member" ||
+    role === "forge_mobile_lead"
+  );
 }
 
 export function canAdminCatalog(role: string): boolean {

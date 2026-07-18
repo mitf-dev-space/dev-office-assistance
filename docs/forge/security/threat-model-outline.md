@@ -10,6 +10,6 @@
 | Compromised worker | Runner token rotation; least privilege |
 | PM arbitrary repos | Admin-registered applications only |
 
-Forge shares Helm's auth surface — strict RBAC (`forge_pm`, `forge_admin`, `lead`) limits exposure.
+Forge shares Helm's auth surface — strict RBAC (`forge_mobile_lead`, `lead`) limits exposure. PMs do not log in; delivery is shared-folder + email.
 
 Full hardening: PRD Loop 17.
