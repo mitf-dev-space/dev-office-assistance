@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { BRAND_TAGLINE } from "../brand";
 import { useAuth } from "../auth/AuthContext";
 import { AppLogo } from "../components/AppLogo";
@@ -6,6 +7,9 @@ import { ThemeSwitcher } from "../components/ThemeSwitcher";
 
 export function LoginPage() {
   const { login } = useAuth();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const passwordChanged = searchParams.get("passwordChanged") === "1";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [err, setErr] = useState<string | null>(null);
@@ -22,13 +26,32 @@ export function LoginPage() {
         Use the email currently on your profile (if you changed it from the seed default, the old
         address will not work). Password is the one you set under Profile.
       </p>
+      {passwordChanged && (
+        <p
+          role="status"
+          style={{
+            marginTop: 0,
+            padding: "0.75rem 1rem",
+            borderRadius: 8,
+            background: "color-mix(in srgb, var(--accent) 12%, transparent)",
+            border: "1px solid color-mix(in srgb, var(--accent) 35%, transparent)",
+          }}
+        >
+          Password updated. Sign in with your new password.
+        </p>
+      )}
       <form
         onSubmit={async (e) => {
           e.preventDefault();
           setErr(null);
           setPending(true);
           try {
-            await login(email, password);
+            const result = await login(email, password);
+            if (result.type === "passwordChange") {
+              navigate("/login/change-password", { replace: true });
+            } else {
+              navigate("/", { replace: true });
+            }
           } catch {
             setErr("Invalid email or password.");
           } finally {

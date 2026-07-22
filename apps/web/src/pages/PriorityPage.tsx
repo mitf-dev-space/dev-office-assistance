@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { List, Table, Text } from "@mantine/core";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import type { PageMeta, TriageItemDto } from "@office/types";
@@ -15,6 +15,8 @@ import { buildListQuery, pickPageMeta } from "../lib/listQuery";
 
 export function PriorityPage() {
   const { request } = useApi();
+  const [searchParams] = useSearchParams();
+  const ritualMode = searchParams.get("ritual") === "1";
   const { page, setPage, limit, setLimit, searchInput, search, onSearchChange } =
     useListQueryState(25);
   const [reorder, setReorder] = useState<{
@@ -64,14 +66,43 @@ export function PriorityPage() {
 
   return (
     <div className="app-page app-page--priority">
+      {ritualMode ? (
+        <div className="ritual-bar" role="navigation" aria-label="Morning ritual steps">
+          <div className="ritual-bar__steps">
+            <span className="ritual-bar__step ritual-bar__step--active">1 · Walk blockers</span>
+            <span className="ritual-bar__sep" aria-hidden>
+              →
+            </span>
+            <span className="ritual-bar__step">2 · Check-in</span>
+          </div>
+          <p className="ritual-bar__hint">
+            Scan aged blockers first, set next actions, then continue to the weekly check-in.
+          </p>
+          <Link to="/standup" className="btn btn-primary">
+            Continue to check-in
+          </Link>
+        </div>
+      ) : null}
+
       <PageHeader
         eyebrow="Ops"
         title="Blockers, risk & escalations"
-        lead="Open items that are blocker or risk, plus anything marked escalated. Age is days since the item was created."
+        lead={
+          ritualMode
+            ? "Morning ritual step 1: walk the priority board (oldest and escalated first), then continue to check-in."
+            : "Leadership lens on open blockers, risks, and escalations. Walk this board before filling the weekly check-in — age is days since creation."
+        }
         actions={
-          <Link to="/triage/new" className="btn btn-primary">
-            New triage
-          </Link>
+          <>
+            {!ritualMode ? (
+              <Link to="/standup" className="btn btn-ghost">
+                Weekly check-in
+              </Link>
+            ) : null}
+            <Link to="/triage/new" className="btn btn-primary">
+              New triage
+            </Link>
+          </>
         }
       />
 
@@ -102,7 +133,7 @@ export function PriorityPage() {
         <div className="card__head">
           <h2 className="card__title">Queue</h2>
           <p className="card__sub" style={{ margin: 0 }}>
-            {q.data ? `${pageMeta.total} open` : "Loading…"}
+            {q.data ? `${pageMeta.total} open · escalated and oldest first` : "Loading…"}
           </p>
         </div>
 
@@ -115,8 +146,16 @@ export function PriorityPage() {
         {q.isLoading && (
           <DataTableSkeleton
             embedded
-            columns={6}
-            columnLabels={["Title", "Category", "Age (days)", "Status", "Assignee", "Flags"]}
+            columns={7}
+            columnLabels={[
+              "Title",
+              "Category",
+              "Age (days)",
+              "Status",
+              "Assignee",
+              "Flags",
+              "Action",
+            ]}
             tableLabel="Loading priority queue"
           />
         )}
@@ -136,11 +175,18 @@ export function PriorityPage() {
                   <Table.Th>Status</Table.Th>
                   <Table.Th>Assignee</Table.Th>
                   <Table.Th>Flags</Table.Th>
+                  <Table.Th>Action</Table.Th>
                 </Table.Tr>
               </Table.Thead>
               <Table.Tbody>
                 {items.map((it) => (
-                  <Table.Tr key={it.id} data-escalated={it.escalated || undefined}>
+                  <Table.Tr
+                    key={it.id}
+                    data-escalated={it.escalated || undefined}
+                    data-aged={
+                      typeof it.ageDays === "number" && it.ageDays >= 3 ? "true" : undefined
+                    }
+                  >
                     <Table.Td>
                       <Link to={`/triage/${it.id}`}>{it.title}</Link>
                       {it.program && (
@@ -148,13 +194,31 @@ export function PriorityPage() {
                           {it.program}
                         </div>
                       )}
+                      {it.nextAction ? (
+                        <div className="preview-line" title="Next action">
+                          Next: {it.nextAction}
+                        </div>
+                      ) : (
+                        <div className="preview-line muted">No next action yet</div>
+                      )}
                     </Table.Td>
                     <Table.Td>
                       <span className="pill pill--cat" data-category={it.category}>
                         {it.category}
                       </span>
                     </Table.Td>
-                    <Table.Td>{it.ageDays ?? "—"}</Table.Td>
+                    <Table.Td>
+                      <span
+                        className={
+                          typeof it.ageDays === "number" && it.ageDays >= 3
+                            ? "priority-age priority-age--stale"
+                            : "priority-age"
+                        }
+                      >
+                        {it.ageDays ?? "—"}
+                        {typeof it.ageDays === "number" ? "d" : ""}
+                      </span>
+                    </Table.Td>
                     <Table.Td>
                       <span className="pill pill--status" data-status={it.status}>
                         {it.status}
@@ -164,6 +228,11 @@ export function PriorityPage() {
                     <Table.Td>
                       {it.escalated && <span className="pill pill--warn">Escalated</span>}
                     </Table.Td>
+                    <Table.Td>
+                      <Link to={`/triage/${it.id}`} className="btn btn-ghost btn-compact">
+                        Open
+                      </Link>
+                    </Table.Td>
                   </Table.Tr>
                 ))}
               </Table.Tbody>
@@ -171,7 +240,12 @@ export function PriorityPage() {
             {items.length === 0 && (
               <div className="empty-state" role="status">
                 <strong>Queue is clear</strong>
-                No open blockers, risks, or escalations match your search.
+                <p style={{ margin: "0.5rem 0 0" }}>
+                  No open blockers, risks, or escalations.{" "}
+                  <Link to="/triage/new">Create triage</Link>
+                  {" · "}
+                  <Link to="/standup">Fill this week’s check-in</Link>
+                </p>
               </div>
             )}
             <TablePagination
@@ -185,6 +259,14 @@ export function PriorityPage() {
           </>
         )}
       </section>
+
+      {ritualMode ? (
+        <div className="ritual-bar ritual-bar--footer">
+          <Link to="/standup" className="btn btn-primary">
+            Continue to check-in →
+          </Link>
+        </div>
+      ) : null}
     </div>
   );
 }

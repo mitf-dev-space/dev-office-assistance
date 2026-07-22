@@ -25,6 +25,9 @@ const putSchema = z.object({
   clearApiKey: z.boolean().optional(),
   assistLocale: z.enum(["en", "ar", "auto"]).optional(),
   dailyCap: z.number().int().min(1).max(100_000).optional(),
+  voiceEnabled: z.boolean().optional(),
+  voiceModel: z.string().min(1).max(200).optional(),
+  voiceDeepModel: z.string().min(1).max(200).optional(),
 });
 
 async function buildTestConfig(env: Env): Promise<LlmAssistConfig | null> {

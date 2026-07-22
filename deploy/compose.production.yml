@@ -71,6 +71,8 @@ services:
       CORS_ORIGIN: ${CORS_ORIGIN}
       NODE_ENV: production
       PORT: "4000"
+      # Prefer IPv4 — many LAN hosts have broken IPv6 (surfaces as ECONNREFUSED to Cloudflare).
+      NODE_OPTIONS: ${NODE_OPTIONS:---dns-result-order=ipv4first}
       UPLOAD_DIR: /app/data/uploads
       FORGE_ARTIFACTS_ROOT: /app/data/forge-artifacts
       FORGE_WORKSPACES_ROOT: /app/data/forge-workspaces

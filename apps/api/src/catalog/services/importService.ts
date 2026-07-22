@@ -5,11 +5,12 @@ import { detectConnectionSlug, parseRepositoryUrl } from "../domain/urlNormalize
 import { mapImportRowSignals } from "./repositoryService.js";
 import type { CatalogEnvSlice } from "../providers/factory.js";
 import { previewRepositoryRegistration, registerRepository } from "./repositoryService.js";
+import { resolveCatalogImportsDir } from "../seed/importsDir.js";
 
 type FixtureRow = Record<string, unknown>;
 
 function loadFixtureFile(name: string): { rows: FixtureRow[]; team: string } {
-  const base = join(process.cwd(), "data/catalog-imports");
+  const base = resolveCatalogImportsDir();
   const xlsxPath = join(base, `${name}.xlsx`);
   const jsonPath = join(base, `${name}.fixture.json`);
   if (existsSync(xlsxPath)) {

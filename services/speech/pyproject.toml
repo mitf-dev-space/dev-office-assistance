@@ -1,0 +1,10 @@
+[project]
+name = "helm-speech"
+version = "0.1.0"
+requires-python = ">=3.10,<3.13"
+description = "Helm streaming speech transcription service (Parakeet / fake)"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+testpaths = ["tests"]

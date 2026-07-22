@@ -10,22 +10,18 @@ Most endpoints require a local JWT bearer token from `/api/auth/login`, unless e
 
 ## Auth and session
 
-- `POST /api/auth/identify`
-- `POST /api/auth/login`
-- `POST /api/auth/login-otp`
-- `POST /api/auth/login/verify-otp`
-- `POST /api/auth/first-login/change-password`
-- `POST /api/auth/first-login/mfa/prepare`
-- `POST /api/auth/first-login/mfa/confirm`
-- `GET /api/me`
+- `POST /api/auth/login` — returns JWT; when `mustChangePassword` is set, response includes `requiresPasswordChange: true` and a short-lived `pwdChange` JWT
+- `POST /api/auth/complete-password-change` — body `{ newPassword }` (min 8); requires `pwdChange` JWT; clears flag and forces re-login
+- `GET /api/me` — includes `mustChangePassword` (allowed with `pwdChange` JWT)
 - `PATCH /api/me`
-- `POST /api/me/password`
+- `POST /api/me/password` — self-serve change (`currentPassword`, `newPassword`); rejected while `mustChangePassword` is true
+
+Not implemented (do not call): MFA/OTP identify flows, invite `POST /api/users`.
 
 ## Users (sign-in accounts)
 
-- `GET /api/users`
-- `POST /api/users` (lead only, requires SMTP configured)
-- `POST /api/users/:userId/reset-password` (lead only)
+- `GET /api/users` — authenticated; includes `mustChangePassword`
+- `POST /api/users/:userId/reset-password` — lead only; sets temporary password + `mustChangePassword`; emails when SMTP configured; returns `temporaryPassword` when `NODE_ENV !== "production"` or `SMTP_DEV_LOG=true`
 
 ## Dashboard and global search
 
@@ -69,10 +65,11 @@ Most endpoints require a local JWT bearer token from `/api/auth/login`, unless e
 
 ## Standup
 
-- `GET /api/standup`
-- `PUT /api/standup`
-- `GET /api/standup/helpers`
-- `GET /api/standup/rollup`
+- `GET /api/standup` — week check-ins for all users (`?weekStart=YYYY-MM-DD` optional)
+- `PUT /api/standup` — upsert current user’s check-in for the week
+- `GET /api/standup/helpers` — triage-derived suggestions + draft bullets for prior/next/blockers
+- `GET /api/standup/rollup` — week snapshot (check-in fill, priority queue age, closed triage count)
+- `POST /api/standup/promote-blocker` — create escalated blocker triage from a check-in title (`{ title, notes?, weekStart? }`)
 
 ## Decisions
 

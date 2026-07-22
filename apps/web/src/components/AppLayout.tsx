@@ -42,7 +42,9 @@ import {
   IconRefresh,
   IconInbox,
   IconSparkles,
+  IconMicrophone,
   IconChartDots3,
+  IconUserShield,
 } from "@tabler/icons-react";
 import type { SessionUser } from "../auth/AuthContext";
 import { canAccessCatalog } from "@office/types";
@@ -247,6 +249,7 @@ export function AppLayout({ user, onLogout, children }: Props) {
   const showForge = canAccessForge(user.role);
   const showForgeAdmin = canAdminForge(user.role);
   const showCatalog = canAccessCatalog(user.role);
+  const showSignInUsers = user.role === "lead";
   const homePath = showHelmCore ? "/" : "/forge";
   const activeNavGroup = pathToNavGroup(pathname);
 
@@ -523,6 +526,15 @@ export function AppLayout({ user, onLogout, children }: Props) {
                   color="teal"
                 />
                 <AppNavItem
+                  to="/apps/ai/voice"
+                  label="Voice"
+                  leftSection={<IconMicrophone {...iconProps} />}
+                  onClick={close}
+                  active={navActive("/apps/ai/voice", { end: true })}
+                  showIconRail={showIconRail}
+                  color="teal"
+                />
+                <AppNavItem
                   to="/apps/outlook"
                   label="Outlook"
                   leftSection={<IconMail {...iconProps} />}
@@ -697,6 +709,17 @@ export function AppLayout({ user, onLogout, children }: Props) {
           pt="md"
           style={{ borderTop: "1px solid var(--mantine-color-default-border, rgba(0,0,0,0.08))" }}
         >
+          {showSignInUsers && (
+            <AppNavItem
+              to="/settings/users"
+              label="Sign-in users"
+              leftSection={<IconUserShield {...iconProps} />}
+              onClick={close}
+              active={navActive("/settings/users", { end: true })}
+              showIconRail={showIconRail}
+              color={primary}
+            />
+          )}
           {showIconRail ? (
             <>
               <Box mb="sm" style={{ display: "flex", justifyContent: "center" }}>

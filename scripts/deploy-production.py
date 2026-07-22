@@ -60,15 +60,19 @@ def read_ssh_password() -> str:
         return pw
     path = (os.environ.get("HELM_SSH_PASSWORD_FILE") or "").strip()
     if path and os.path.isfile(path):
-        # Allow KEY=value file or raw password line
+        # Allow KEY=value file or a single raw password line
         text = Path(path).read_text(encoding="utf-8")
+        raw_candidate: str | None = None
         for line in text.splitlines():
             line = line.strip()
             if not line or line.startswith("#"):
                 continue
             if line.startswith("HELM_SSH_PASSWORD="):
                 return line.split("=", 1)[1].strip()
-            return line
+            if "=" not in line and raw_candidate is None:
+                raw_candidate = line
+        if raw_candidate:
+            return raw_candidate
     print(
         "ERROR: Set HELM_SSH_PASSWORD or HELM_SSH_PASSWORD_FILE.",
         file=sys.stderr,

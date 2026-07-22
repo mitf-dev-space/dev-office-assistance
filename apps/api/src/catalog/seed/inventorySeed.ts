@@ -10,6 +10,7 @@ import {
 } from "../domain/spreadsheetParse.js";
 import { parseRepositoryUrl } from "../domain/urlNormalize.js";
 import { OPEN_ORIGIN_END_AT } from "../domain/originHistory.js";
+import { resolveCatalogImportsDir } from "./importsDir.js";
 
 type InventoryRow = {
   name: string;
@@ -42,8 +43,6 @@ type InventoryFile = {
   }[];
 };
 
-const IMPORTS_DIR = join(process.cwd(), "data/catalog-imports");
-
 function slugify(name: string): string {
   return name
     .trim()
@@ -53,7 +52,7 @@ function slugify(name: string): string {
 }
 
 function loadInventory(name: "backend" | "mobile" | "web"): InventoryFile {
-  const path = join(IMPORTS_DIR, `${name}.fixture.json`);
+  const path = join(resolveCatalogImportsDir(), `${name}.fixture.json`);
   if (!existsSync(path)) throw new Error(`Missing inventory fixture: ${path}`);
   return JSON.parse(readFileSync(path, "utf8")) as InventoryFile;
 }

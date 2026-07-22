@@ -20,16 +20,25 @@ export type SessionUser = {
   email: string;
   displayName: string | null;
   role: string;
+  /** True while the client holds a pwdChange JWT after forced reset. */
+  requiresPasswordChange?: boolean;
+  mustChangePassword?: boolean;
   /** Set after profile update when the API includes them. */
   notifyEmailTriage?: boolean;
   notifyEmailDigest?: boolean;
 };
 
+export type LoginResult =
+  | { type: "full" }
+  | { type: "passwordChange" };
+
 type AuthState = {
   token: string | null;
   user: SessionUser | null;
   ready: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  /** True when the current session may only complete a forced password change. */
+  requiresPasswordChange: boolean;
+  login: (email: string, password: string) => Promise<LoginResult>;
   logout: () => void;
   /** Persist new JWT + user after profile email/display name changes. */
   applyAuthRefresh: (token: string, user: SessionUser) => void;
@@ -60,7 +69,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => setTokenGetter(null);
   }, [token]);
 
-  const login = useCallback(async (email: string, password: string) => {
+  const login = useCallback(async (email: string, password: string): Promise<LoginResult> => {
     const res = await fetch(`${apiBase}/api/auth/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -69,6 +78,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const data = (await res.json().catch(() => ({}))) as {
       token?: string;
       user?: SessionUser;
+      requiresPasswordChange?: boolean;
       error?: string;
     };
     if (!res.ok) {
@@ -77,9 +87,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!data.token || !data.user) {
       throw new Error("invalid_response");
     }
-    setAuthSession(data.token, data.user);
+    const requiresPasswordChange = data.requiresPasswordChange === true;
+    const sessionUser: SessionUser = {
+      ...data.user,
+      requiresPasswordChange,
+      mustChangePassword: data.user.mustChangePassword ?? requiresPasswordChange,
+    };
+    setAuthSession(data.token, sessionUser);
     setToken(data.token);
-    setUser(data.user);
+    setUser(sessionUser);
+    return requiresPasswordChange
+      ? { type: "passwordChange" }
+      : { type: "full" };
   }, []);
 
   const logout = useCallback(() => {
@@ -94,9 +113,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(newUser);
   }, []);
 
+  const requiresPasswordChange = Boolean(user?.requiresPasswordChange);
+
   const value = useMemo(
-    () => ({ token, user, ready, login, logout, applyAuthRefresh }),
-    [token, user, ready, login, logout, applyAuthRefresh],
+    () => ({
+      token,
+      user,
+      ready,
+      requiresPasswordChange,
+      login,
+      logout,
+      applyAuthRefresh,
+    }),
+    [token, user, ready, requiresPasswordChange, login, logout, applyAuthRefresh],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

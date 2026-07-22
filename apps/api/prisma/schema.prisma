@@ -67,6 +67,9 @@ model User {
 
   role String @default("member")
 
+  /// After lead reset (or invite), user must set a new password before full access.
+  mustChangePassword Boolean @default(false) @map("must_change_password")
+
   /// Future: email when assigned triage (requires SMTP or Graph mail).
   notifyEmailTriage Boolean @default(false) @map("notify_email_triage")
 
@@ -101,6 +104,7 @@ model User {
   aiActionProposalsCreated   AiActionProposal[]      @relation("AiActionProposalCreatedBy")
   aiActionProposalsReviewed  AiActionProposal[]      @relation("AiActionProposalReviewedBy")
   llmWorkspaceSettingsUpdated LlmWorkspaceSettings[]
+  voiceSessions              VoiceSession[]
 }
 
 /// Roster entry: no login. Grouped in teams on Team management; assignable in triage.
@@ -1343,7 +1347,7 @@ model BackgroundJob {
   @@index([status, scheduledFor])
 }
 
-/// Singleton workspace LLM config (not BYOK). Interactive assist + background insights share this key.
+/// Singleton workspace LLM config (not BYOK). Assist, insights, and voice reasoning share this key.
 model LlmWorkspaceSettings {
   id             String   @id @default("default")
   enabled        Boolean  @default(false)
@@ -1354,6 +1358,10 @@ model LlmWorkspaceSettings {
   apiKeyHint     String?  @map("api_key_hint") @db.VarChar(32)
   assistLocale   String   @default("en") @map("assist_locale")
   dailyCap       Int      @default(200) @map("daily_cap")
+  /// Streaming voice assistant (Parakeet STT + workspace LLM for reasoning).
+  voiceEnabled   Boolean  @default(false) @map("voice_enabled")
+  voiceModel     String   @default("openai/gpt-4o-mini") @map("voice_model")
+  voiceDeepModel String   @default("openai/gpt-4o") @map("voice_deep_model")
   lastTestedAt   DateTime? @map("last_tested_at")
   lastTestOk     Boolean?  @map("last_test_ok")
   updatedById    String?   @map("updated_by_id")
@@ -1395,23 +1403,51 @@ model InsightSnapshot {
 
 /// Staged AI write proposals — lead must approve before external/side effects.
 model AiActionProposal {
-  id           String    @id @default(uuid())
-  kind         String
-  status       String    @default("pending")
-  title        String
-  summary      String    @db.Text
-  payload      Json
-  result       Json?
-  createdById  String?   @map("created_by_id")
-  createdBy    User?     @relation("AiActionProposalCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
-  reviewedById String?   @map("reviewed_by_id")
-  reviewedBy   User?     @relation("AiActionProposalReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
-  createdAt    DateTime  @default(now()) @map("created_at")
-  reviewedAt   DateTime? @map("reviewed_at")
+  id             String        @id @default(uuid())
+  kind           String
+  status         String        @default("pending")
+  title          String
+  summary        String        @db.Text
+  payload        Json
+  result         Json?
+  createdById    String?       @map("created_by_id")
+  createdBy      User?         @relation("AiActionProposalCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  reviewedById   String?       @map("reviewed_by_id")
+  reviewedBy     User?         @relation("AiActionProposalReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
+  voiceSessionId String?       @map("voice_session_id")
+  voiceSession   VoiceSession? @relation(fields: [voiceSessionId], references: [id], onDelete: SetNull)
+  createdAt      DateTime      @default(now()) @map("created_at")
+  reviewedAt     DateTime?     @map("reviewed_at")
 
   @@index([status, createdAt])
   @@index([kind, createdAt])
+  @@index([voiceSessionId])
   @@map("AiActionProposal")
+}
+
+/// Streaming voice assistant session (Parakeet STT + OpenRouter reasoning).
+model VoiceSession {
+  id               String             @id @default(uuid())
+  userId           String             @map("user_id")
+  user             User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  speechSessionId  String?            @map("speech_session_id")
+  status           String             @default("created")
+  provider         String             @default("parakeet")
+  correlationId    String?            @map("correlation_id")
+  errorCategory    String?            @map("error_category")
+  toolCallCount    Int                @default(0) @map("tool_call_count")
+  estimatedCostUsd Float              @default(0) @map("estimated_cost_usd")
+  inputTokens      Int                @default(0) @map("input_tokens")
+  outputTokens     Int                @default(0) @map("output_tokens")
+  startedAt        DateTime           @default(now()) @map("started_at")
+  endedAt          DateTime?          @map("ended_at")
+  createdAt        DateTime           @default(now()) @map("created_at")
+  updatedAt        DateTime           @updatedAt @map("updated_at")
+  proposals        AiActionProposal[]
+
+  @@index([userId, startedAt])
+  @@index([status, startedAt])
+  @@map("VoiceSession")
 }
 
 model AuditEvent {
