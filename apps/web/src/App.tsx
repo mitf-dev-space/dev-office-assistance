@@ -20,6 +20,8 @@ import { TeamManagementPage } from "./pages/TeamManagementPage";
 import { DevManagementPage } from "./pages/DevManagementPage";
 import { DevEditPage } from "./pages/DevEditPage";
 import { ProfilePage } from "./pages/ProfilePage";
+import { ChangePasswordPage } from "./pages/ChangePasswordPage";
+import { UsersAdminPage } from "./pages/UsersAdminPage";
 import { PriorityPage } from "./pages/PriorityPage";
 import { StandupPage } from "./pages/StandupPage";
 import { DecisionsPage } from "./pages/DecisionsPage";
@@ -45,6 +47,7 @@ import { AiSettingsPage } from "./pages/AiSettingsPage";
 import { AskHelmChatPage } from "./pages/AskHelmChatPage";
 import { AiReviewQueuePage } from "./pages/AiReviewQueuePage";
 import { InsightsPage } from "./pages/InsightsPage";
+import { VoiceAssistantPage } from "./pages/VoiceAssistantPage";
 
 function DashboardRoute() {
   const { user } = useAuth();
@@ -55,7 +58,7 @@ function DashboardRoute() {
 }
 
 export default function App() {
-  const { user, ready, logout } = useAuth();
+  const { user, ready, logout, requiresPasswordChange } = useAuth();
 
   if (!ready) {
     return (
@@ -71,7 +74,21 @@ export default function App() {
   if (!user) {
     return (
       <div className="app-shell app-shell--auth">
-        <LoginPage />
+        <Routes>
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="*" element={<LoginPage />} />
+        </Routes>
+      </div>
+    );
+  }
+
+  if (requiresPasswordChange) {
+    return (
+      <div className="app-shell app-shell--auth">
+        <Routes>
+          <Route path="/login/change-password" element={<ChangePasswordPage />} />
+          <Route path="*" element={<ChangePasswordPage />} />
+        </Routes>
       </div>
     );
   }
@@ -82,6 +99,8 @@ export default function App() {
         <Routes>
           <Route path="/" element={<DashboardRoute />} />
           <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/settings/users" element={<UsersAdminPage />} />
+          <Route path="/login/change-password" element={<Navigate to="/" replace />} />
           <Route path="/triage" element={<TriagePage />} />
           <Route path="/triage/new" element={<TriageCreatePage />} />
           <Route path="/triage/:id" element={<TriageDetailPage />} />
@@ -102,6 +121,7 @@ export default function App() {
           <Route path="/apps/ai" element={<AiSettingsPage />} />
           <Route path="/apps/ai/chat" element={<AskHelmChatPage />} />
           <Route path="/apps/ai/review" element={<AiReviewQueuePage />} />
+          <Route path="/apps/ai/voice" element={<VoiceAssistantPage />} />
           <Route path="/settings/ai" element={<AiSettingsPage />} />
           <Route path="/apps/outlook" element={<OutlookPage />} />
           <Route path="/apps/todo" element={<TodoPage />} />

@@ -132,6 +132,14 @@ export function MorningBriefCard() {
           )}
 
           <Group gap="sm" mt="md">
+            <Link to="/priority?ritual=1" className="btn btn-primary">
+              Start morning ritual
+            </Link>
+            {brief.metrics.standup?.emptyWeek ? (
+              <Link to="/standup" className="btn btn-ghost">
+                Fill this week’s check-in
+              </Link>
+            ) : null}
             <Link to="/priority" className="btn btn-ghost">
               Blockers & risk
             </Link>

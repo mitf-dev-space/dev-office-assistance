@@ -1,5 +1,7 @@
 # Workspace AI (assist + insights)
 
+> **Streaming Voice Assistant:** Parakeet streaming English STT + OpenRouter reasoning — UI at `/apps/ai/voice`. Assessment: [`docs/ai/voice-assistant-assessment.md`](ai/voice-assistant-assessment.md). Runbook: [`docs/ai/voice-assistant-runbook.md`](ai/voice-assistant-runbook.md). Disabled by default (`VOICE_ASSISTANT_ENABLED`); not OpenAI Realtime.
+
 Helm uses a **single workspace LLM key** (not personal BYOK) for:
 
 1. **In-feature assist** — ✦ buttons on triage, standup, planning, decisions, catalog, Forge, priority

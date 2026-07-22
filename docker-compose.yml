@@ -26,17 +26,26 @@ services:
       AUTH_JWT_SECRET: ${AUTH_JWT_SECRET}
       UPLOAD_DIR: /app/data/uploads
       MAX_UPLOAD_BYTES: ${MAX_UPLOAD_BYTES:-26214400}
-      # Allow browser origins for static UI (nginx on 8080) and local Vite (5173).
-      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:5173,http://127.0.0.1:5173,http://localhost:8080,http://127.0.0.1:8080}
+      # Allow browser origins for static UI (nginx on 8080) and local Vite (5173/5174).
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:5173,http://127.0.0.1:5173,http://localhost:5174,http://127.0.0.1:5174,http://localhost:8080,http://127.0.0.1:8080}
       PORT: "4000"
       NODE_ENV: production
       ALLOW_LOCALHOST_CORS_IN_PRODUCTION: "true"
+      # Required when NODE_ENV=production (encrypts workspace AI keys at rest).
+      HELM_SECRET_ENCRYPTION_KEY: ${HELM_SECRET_ENCRYPTION_KEY}
+      CATALOG_TOKEN_ENCRYPTION_KEY: ${CATALOG_TOKEN_ENCRYPTION_KEY:-}
       RATE_LIMIT_MAX: ${RATE_LIMIT_MAX:-200}
       M365_TENANT_ID: ${M365_TENANT_ID:-}
       M365_CLIENT_ID: ${M365_CLIENT_ID:-}
       FORGE_ARTIFACTS_ROOT: ${FORGE_ARTIFACTS_ROOT:-data/forge-artifacts}
       FORGE_ALLOW_IOS_SIMULATION: ${FORGE_ALLOW_IOS_SIMULATION:-false}
       FORGE_RUNNER_TOKEN_PEPPER: ${FORGE_RUNNER_TOKEN_PEPPER:-}
+      VOICE_ASSISTANT_KILL_SWITCH: ${VOICE_ASSISTANT_KILL_SWITCH:-false}
+      SPEECH_PROVIDER: ${SPEECH_PROVIDER:-fake}
+      SPEECH_SERVICE_URL: ${SPEECH_SERVICE_URL:-http://speech:8000}
+      SPEECH_SERVICE_TOKEN: ${SPEECH_SERVICE_TOKEN:-}
+      AI_REASONING_PROVIDER: ${AI_REASONING_PROVIDER:-workspace}
+      AI_DAILY_BUDGET_USD: ${AI_DAILY_BUDGET_USD:-5}
     ports:
       - "4000:4000"
     depends_on:
@@ -44,6 +53,27 @@ services:
         condition: service_healthy
     volumes:
       - office_uploads:/app/data/uploads
+
+  speech:
+    profiles: ["voice"]
+    build:
+      context: ./services/speech
+      dockerfile: Dockerfile
+    environment:
+      SPEECH_ENGINE: ${SPEECH_ENGINE:-fake}
+      PARAKEET_MODEL: ${PARAKEET_MODEL:-nvidia/parakeet-unified-en-0.6b}
+      SPEECH_SERVICE_TOKEN: ${SPEECH_SERVICE_TOKEN:-}
+      MAX_CONCURRENT_SESSIONS: ${SPEECH_MAX_CONCURRENT_SESSIONS:-2}
+    ports:
+      - "8000:8000"
+    # For Parakeet GPU: uncomment and require NVIDIA Container Toolkit
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
 
   web:
     build:

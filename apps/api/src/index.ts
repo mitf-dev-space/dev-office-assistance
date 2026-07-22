@@ -7,7 +7,10 @@ import multipart from "@fastify/multipart";
 import rateLimit from "@fastify/rate-limit";
 import { loadEnv, catalogEnvFrom } from "./env.js";
 import { createAuthPlugin } from "./auth.js";
-import { registerAuthLoginRoutes } from "./routes/authLogin.js";
+import {
+  registerAuthLoginRoutes,
+  registerAuthPasswordChangeRoutes,
+} from "./routes/authLogin.js";
 import { registerMeRoutes } from "./routes/me.js";
 import { registerUsersRoutes } from "./routes/users.js";
 import { registerTriageRoutes } from "./routes/triage.js";
@@ -31,12 +34,14 @@ import { registerLlmSettingsRoutes } from "./routes/llmSettings.js";
 import { registerAssistRoutes } from "./routes/assist.js";
 import { registerAiProposalRoutes } from "./routes/aiProposals.js";
 import { registerInsightsRoutes } from "./routes/insights.js";
+import { registerVoiceRoutes } from "./voice/routes.js";
 import { startCatalogWorker } from "./catalog/jobs/worker.js";
 import {
   startClickUpScheduler,
   startMicrosoftTodoScheduler,
 } from "./jobs/externalWorkWorker.js";
 import { startInsightsScheduler } from "./insights/runInsightJob.js";
+import { seedCatalog } from "./catalog/seed/catalogBasics.js";
 import { seedCatalogInventory } from "./catalog/seed/inventorySeed.js";
 import { seedConnectionTokensFromEnv } from "./catalog/seed/connectionTokens.js";
 import { seedHelmGithubRepository } from "./catalog/seed/helmGithubRepository.js";
@@ -139,8 +144,9 @@ export async function buildServer() {
   await app.register(async function protectedApi(inner) {
     inner.addHook("preValidation", authMiddleware);
     await registerMeRoutes(inner, env);
+    await registerAuthPasswordChangeRoutes(inner, env);
     await registerM365IntegrationsRoutes(inner, env);
-    await registerUsersRoutes(inner);
+    await registerUsersRoutes(inner, env);
     await registerTriageRoutes(inner);
     await registerTriageAttachmentRoutes(inner, env);
     await registerExpensesRoutes(inner, env);
@@ -160,6 +166,7 @@ export async function buildServer() {
     await registerAssistRoutes(inner, env);
     await registerAiProposalRoutes(inner);
     await registerInsightsRoutes(inner, env);
+    await registerVoiceRoutes(inner, env);
   });
 
   startCatalogWorker(prisma, catalogEnvFrom(env), env);
@@ -168,6 +175,9 @@ export async function buildServer() {
   startInsightsScheduler(prisma, env);
 
   try {
+    // Connections/teams must exist before inventory fixtures can attach repos.
+    // Production migrate-only deploys never ran prisma db seed — seed here (idempotent).
+    await seedCatalog(prisma);
     await seedCatalogInventory(prisma);
     await seedConnectionTokensFromEnv(prisma, env);
     await seedHelmGithubRepository(prisma, catalogEnvFrom(env));

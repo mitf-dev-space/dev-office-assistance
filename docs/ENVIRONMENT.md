@@ -98,6 +98,26 @@ This project reads environment variables from the repository root `.env` for API
 
 Inventory fixtures: `apps/api/data/catalog-imports/*.fixture.json` (or upload `.xlsx` when added).
 
+## Streaming voice assistant
+
+| Variable | Required | Default | Notes |
+|----------|----------|---------|-------|
+| `VOICE_ASSISTANT_ENABLED` | No | `false` | Master kill switch |
+| `SPEECH_PROVIDER` | No | `fake` | `fake` \| `parakeet` (API-side label) |
+| `SPEECH_SERVICE_URL` | No | `http://localhost:8000` | Internal speech service base URL |
+| `SPEECH_SERVICE_TOKEN` | No | empty | Optional shared Bearer for API→speech |
+| `SPEECH_ENGINE` | No | `fake` | Speech container engine (`fake` \| `parakeet`) |
+| `PARAKEET_MODEL` | No | `nvidia/parakeet-unified-en-0.6b` | HF model id when engine=parakeet |
+| `AI_REASONING_PROVIDER` | No | `fake` | `fake` \| `openrouter` |
+| `OPENROUTER_API_KEY` | For live reasoning | empty | Server-only |
+| `OPENROUTER_DEFAULT_MODEL` | No | `openai/gpt-4o-mini` | Voice turns |
+| `OPENROUTER_DEEP_MODEL` | No | `openai/gpt-4o` | Reserved for deep analysis |
+| `AI_DAILY_BUDGET_USD` | No | `5` | Soft/hard daily spend gate |
+| `VOICE_SILENCE_FINALIZE_MS` | No | `1200` | End-of-turn silence |
+| `VOICE_MAX_UTTERANCE_MS` | No | `120000` | Max uninterrupted speech |
+
+Compose: `docker compose --profile voice up -d speech`. See [`docs/ai/voice-assistant-runbook.md`](ai/voice-assistant-runbook.md).
+
 ## Web variables (`apps/web/.env`)
 
 | Variable | Required | Default | Notes |

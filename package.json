@@ -11,6 +11,8 @@
     "build": "npm run build -w @office/types && npm run prisma:generate -w @office/api && npm run build -w @office/api && npm run build -w @office/web",
     "lint": "npm run lint -ws --if-present",
     "test": "npm run test -w @office/api",
+    "test:speech": "cd services/speech && python -m pytest -q",
+    "test:voice-ui": "tsx --test apps/web/src/features/voice/state/machine.test.ts",
     "db:migrate": "npm run prisma:migrate -w @office/api",
     "db:generate": "npm run prisma:generate -w @office/api",
     "db:seed": "npm run db:seed -w @office/api",

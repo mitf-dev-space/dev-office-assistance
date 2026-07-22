@@ -364,6 +364,63 @@ export type StandupWeekResponseDto = {
   entries: StandupCheckInDto[];
 };
 
+export type StandupSuggestionSource =
+  | "triage_done"
+  | "triage_open"
+  | "priority_queue"
+  | "peer_checkin";
+
+export type StandupSuggestionDto = {
+  id: string;
+  label: string;
+  triageItemId?: string;
+  source: StandupSuggestionSource;
+};
+
+export type StandupHelpersDto = {
+  weekStart: string;
+  suggestions: {
+    priorWork: StandupSuggestionDto[];
+    nextWork: StandupSuggestionDto[];
+    blockers: StandupSuggestionDto[];
+  };
+  draft: {
+    priorWork: string;
+    nextWork: string;
+    blockers: string;
+  };
+};
+
+export type StandupRollupDto = {
+  weekStart: string;
+  weekLabel: string;
+  checkIns: {
+    totalUsers: number;
+    filledCount: number;
+    emptyCount: number;
+    byUser: {
+      userId: string;
+      displayName: string | null;
+      email: string;
+      filled: boolean;
+    }[];
+  };
+  priorityQueue: {
+    count: number;
+    oldestAgeDays: number | null;
+    missingNextActionCount: number;
+  };
+  triageClosedThisWeek: number;
+};
+
+export type PromoteStandupBlockerResultDto = {
+  triageItemId: string;
+  title: string;
+  category: string;
+  escalated: boolean;
+  status: string;
+};
+
 export type TeamDecisionDto = {
   id: string;
   title: string;

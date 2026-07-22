@@ -116,10 +116,13 @@ export function DashboardPage() {
       <PageHeader
         eyebrow="Overview"
         title="Dashboard"
-        lead="Scan queue health and org signals, then drill into Triage, Catalog, or Forge when you need the details."
+        lead="Start with the morning ritual (blockers → check-in), then drill into Triage, Catalog, or Forge when you need details."
         actions={
           <div className="dashboard-header-actions">
             <nav className="dashboard-quick-nav" aria-label="Work areas">
+              <Link to="/priority?ritual=1" className="btn btn-primary">
+                Morning ritual
+              </Link>
               <Link to="/triage" className="btn btn-ghost">
                 Triage
               </Link>

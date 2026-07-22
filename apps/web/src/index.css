@@ -1960,6 +1960,137 @@ details.app-filters-disclosure--standup-week {
   margin-bottom: 1.25rem;
 }
 
+/* Morning ritual: Priority → Check-in */
+.ritual-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1rem;
+  margin-bottom: 1.25rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid color-mix(in srgb, var(--accent) 28%, var(--color-border));
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--accent) 8%, var(--color-surface));
+}
+.ritual-bar--footer {
+  margin-top: 1.25rem;
+  margin-bottom: 0;
+  justify-content: flex-end;
+}
+.ritual-bar__steps {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+.ritual-bar__step--active {
+  color: var(--accent);
+}
+.ritual-bar__sep {
+  opacity: 0.45;
+}
+.ritual-bar__hint {
+  flex: 1 1 12rem;
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--color-muted, #667);
+}
+.priority-age--stale {
+  font-weight: 700;
+  color: var(--color-warn, #b45309);
+}
+.btn-compact {
+  padding: 0.25rem 0.55rem;
+  font-size: 0.8rem;
+}
+
+.standup-rollup {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 0.65rem;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding: 0.55rem 0.85rem;
+  font-size: 0.85rem;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--color-canvas) 50%, var(--color-surface));
+  border: 1px solid var(--color-border);
+}
+.standup-helpers {
+  margin-bottom: 1.25rem;
+  padding: 0.85rem 1rem;
+  border: 1px dashed color-mix(in srgb, var(--accent) 35%, var(--color-border));
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--accent) 5%, var(--color-surface));
+}
+.standup-helpers__head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.85rem;
+}
+.standup-helpers__title {
+  margin: 0;
+  font-size: 0.95rem;
+}
+.standup-helpers__sub {
+  margin: 0.25rem 0 0;
+  font-size: 0.8rem;
+  color: var(--color-muted, #667);
+}
+.standup-chip-group + .standup-chip-group {
+  margin-top: 0.75rem;
+}
+.standup-chip {
+  display: inline-flex;
+  max-width: 22rem;
+  padding: 0.28rem 0.55rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  font-size: 0.78rem;
+  text-align: left;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.standup-chip:hover {
+  border-color: color-mix(in srgb, var(--accent) 50%, var(--color-border));
+  background: color-mix(in srgb, var(--accent) 8%, var(--color-surface));
+}
+.standup-chip-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  max-width: 100%;
+}
+.standup-chip-link {
+  font-size: 0.72rem;
+  white-space: nowrap;
+}
+.standup-promote {
+  margin: 1rem 0 0.5rem;
+}
+.standup-promote label {
+  display: block;
+  font-size: 0.82rem;
+  font-weight: 600;
+  margin-bottom: 0.35rem;
+}
+.standup-promote__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+.standup-promote__row input {
+  flex: 1 1 12rem;
+  min-width: 10rem;
+}
+
 summary.dashboard-triage-filters__summary,
 summary.app-filters-disclosure__summary {
   list-style: none;

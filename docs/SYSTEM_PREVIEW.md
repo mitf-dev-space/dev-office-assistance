@@ -44,15 +44,17 @@ flowchart TD
   G --> R
 ```
 
+**Morning ritual (leadership):** Dashboard morning brief → **Start morning ritual** (`/priority?ritual=1`) to walk blockers → **Continue to check-in** (`/standup`) with triage-sourced draft suggestions → promote any new blockers back to the priority queue. Check-in stays weekly for signed-in users; it does not replace triage.
+
 ## Capability Matrix
 
 | Capability | What Helm Enables | Product Surface / API |
 |---|---|---|
-| Authentication | Local JWT auth, first-login password setup, TOTP MFA | `Login`, `First-time setup`, `/api/auth/*`, `/api/me*` |
+| Authentication | Local JWT, lead reset + forced change, Profile self-change | `Login`, Change password, Sign-in users, `/api/auth/*`, `/api/me*`, `/api/users*` |
 | Triage Operations | Create, assign, reprioritize, attach files, track activity | `Dashboard`, `Triage detail`, `/api/triage-items*`, `/api/triage-attachments/*` |
 | Planning | Link execution work to initiatives and milestones | `Planning`, `/api/planning*`, `/api/release-milestones*` |
 | Team Operations | Manage developer directory and team memberships | `Developers`, `Team management`, `/api/developers*`, `/api/team-memberships*` |
-| Coordination Rhythm | Run standups, keep decision memory, monitor health | `Standup`, `Decisions`, `/api/standup*`, `/api/decisions*`, `/api/dashboard-overview` |
+| Coordination Rhythm | Morning ritual (priority walk → check-in), decisions, health | `Priority`, `Standup`, `Decisions`, `/api/standup*`, `/api/triage-items/priority-queue`, `/api/decisions*`, `/api/dashboard-overview` |
 | Expenses and Exports | Capture expenses, attach receipts, export CSV reports | `Expenses`, `/api/expenses*`, `/api/exports/expenses.csv`, `/api/exports/triage.csv` |
 | Discovery | Fast lookup across operational data | Global search, `/api/search` |
 | Optional Integrations | Pull actionable context from external apps when connected | `Apps`, `/api/integrations/*`, `/api/outlook/*`, `/api/todo/*`, `/api/clickup/*` |
@@ -79,7 +81,7 @@ flowchart LR
 1. Faster decision cycles: triage and planning stay connected.
 2. Better leadership handoffs: lead and assistant share one live context.
 3. Lower coordination noise: status and decisions are captured where work happens.
-4. Reliable onboarding and recovery: SMTP-based invites/resets feed into secure first-login flow.
+4. Reliable recovery: lead password reset (optional SMTP) feeds into forced change-password on next login.
 5. Optional integrations without lock-in: external apps add value but never block core work.
 
 ## 10-Minute Demo Script

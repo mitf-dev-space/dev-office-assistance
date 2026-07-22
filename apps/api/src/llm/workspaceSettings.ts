@@ -28,6 +28,9 @@ export type LlmSettingsPublicDto = {
   apiKeyHint: string | null;
   assistLocale: string;
   dailyCap: number;
+  voiceEnabled: boolean;
+  voiceModel: string;
+  voiceDeepModel: string;
   lastTestedAt: string | null;
   lastTestOk: boolean | null;
   updatedAt: string;
@@ -68,6 +71,9 @@ export async function getLlmSettingsPublic(
     apiKeyHint: row.apiKeyHint,
     assistLocale: row.assistLocale,
     dailyCap: row.dailyCap,
+    voiceEnabled: row.voiceEnabled,
+    voiceModel: row.voiceModel,
+    voiceDeepModel: row.voiceDeepModel,
     lastTestedAt: row.lastTestedAt?.toISOString() ?? null,
     lastTestOk: row.lastTestOk,
     updatedAt: row.updatedAt.toISOString(),
@@ -92,6 +98,9 @@ export type UpdateLlmSettingsInput = {
   clearApiKey?: boolean;
   assistLocale?: string;
   dailyCap?: number;
+  voiceEnabled?: boolean;
+  voiceModel?: string;
+  voiceDeepModel?: string;
 };
 
 export async function updateLlmSettings(
@@ -135,6 +144,16 @@ export async function updateLlmSettings(
     throw new Error("invalid_assist_locale");
   }
 
+  const voiceModel =
+    input.voiceModel !== undefined ? input.voiceModel.trim().slice(0, 200) : row.voiceModel;
+  const voiceDeepModel =
+    input.voiceDeepModel !== undefined
+      ? input.voiceDeepModel.trim().slice(0, 200)
+      : row.voiceDeepModel;
+  if (!voiceModel || !voiceDeepModel) {
+    throw new Error("invalid_voice_model");
+  }
+
   return prisma.llmWorkspaceSettings.update({
     where: { id: SETTINGS_ID },
     data: {
@@ -146,6 +165,9 @@ export async function updateLlmSettings(
       apiKeyHint: apiKeyHintValue,
       assistLocale,
       dailyCap: input.dailyCap ?? row.dailyCap,
+      voiceEnabled: input.voiceEnabled ?? row.voiceEnabled,
+      voiceModel,
+      voiceDeepModel,
       updatedById: userId,
     },
   });
@@ -207,4 +229,48 @@ export async function markLlmTestResult(
     where: { id: SETTINGS_ID },
     data: { lastTestedAt: new Date(), lastTestOk: ok },
   });
+}
+
+export type VoiceReasoningConfig = {
+  voiceEnabled: boolean;
+  apiKey: string | null;
+  baseUrl: string;
+  model: string;
+  deepModel: string;
+  providerPreset: string;
+  referer: string;
+};
+
+/** Voice uses the same workspace API key / base URL; model can differ (voiceModel). */
+export async function resolveVoiceReasoningConfig(
+  prisma: PrismaClient,
+  env: Env,
+): Promise<VoiceReasoningConfig | null> {
+  if (env.VOICE_ASSISTANT_KILL_SWITCH) return null;
+
+  const row = await ensureRow(prisma);
+  if (!row.voiceEnabled) return null;
+
+  let apiKey: string | null = null;
+  if (row.apiKeyCipher) {
+    try {
+      apiKey = decryptSecret(row.apiKeyCipher, resolveLlmEncryptionKey(env));
+    } catch {
+      return null;
+    }
+  }
+
+  const preset = isLlmProviderPreset(row.providerPreset) ? row.providerPreset : "openai_compatible";
+  const meta = presetMeta(preset);
+  if (meta?.apiKeyRequired && !apiKey && preset !== "mock") return null;
+
+  return {
+    voiceEnabled: true,
+    apiKey,
+    baseUrl: row.baseUrl,
+    model: row.voiceModel || row.model,
+    deepModel: row.voiceDeepModel || row.voiceModel || row.model,
+    providerPreset: preset,
+    referer: env.APP_PUBLIC_URL || "http://localhost:5174",
+  };
 }
