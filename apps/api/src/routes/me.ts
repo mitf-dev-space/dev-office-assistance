@@ -42,6 +42,7 @@ export async function registerMeRoutes(app: FastifyInstance, env: Env) {
       email: user.email,
       displayName: user.displayName,
       role: user.role,
+      mustChangePassword: user.mustChangePassword,
       notifyEmailTriage: user.notifyEmailTriage,
       notifyEmailDigest: user.notifyEmailDigest,
     };
@@ -127,6 +128,14 @@ export async function registerMeRoutes(app: FastifyInstance, env: Env) {
         .send({ error: "validation", details: parsed.error.flatten() });
     }
 
+    if (me.mustChangePassword) {
+      return reply.status(400).send({
+        error: "password_change_required",
+        message:
+          "Complete the forced password change flow before using profile password change.",
+      });
+    }
+
     const { currentPassword, newPassword } = parsed.data;
     const ok = await bcrypt.compare(currentPassword, me.passwordHash);
     if (!ok) {
@@ -136,7 +145,7 @@ export async function registerMeRoutes(app: FastifyInstance, env: Env) {
     const passwordHash = await bcrypt.hash(newPassword, 10);
     await prisma.user.update({
       where: { id: me.id },
-      data: { passwordHash },
+      data: { passwordHash, mustChangePassword: false },
     });
 
     return { ok: true };

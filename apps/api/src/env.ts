@@ -55,6 +55,22 @@ function isLocalhostOrigin(origin: string): boolean {
   }
 }
 
+/**
+ * Parse env booleans correctly. Zod's z.coerce.boolean uses Boolean(), so the
+ * string "false" becomes true — fatal for docker-compose defaults like :-false.
+ */
+const envBoolean = z.preprocess((value) => {
+  if (value === undefined || value === null || value === "") return undefined;
+  if (typeof value === "boolean") return value;
+  if (typeof value === "number") return value !== 0;
+  if (typeof value === "string") {
+    const s = value.trim().toLowerCase();
+    if (["1", "true", "yes", "on"].includes(s)) return true;
+    if (["0", "false", "no", "off"].includes(s)) return false;
+  }
+  return value;
+}, z.boolean());
+
 const envSchema = z.object({
   NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
   PORT: z.coerce.number().default(4000),
@@ -73,13 +89,15 @@ const envSchema = z.object({
   FORGE_WORKSPACES_ROOT: z.string().default("data/forge-workspaces"),
   FORGE_MAX_ARTIFACT_BYTES: z.coerce.number().default(200 * 1024 * 1024),
   FORGE_RUNNER_TOKEN_PEPPER: z.string().min(32).optional(),
-  FORGE_ALLOW_IOS_SIMULATION: z.coerce.boolean().default(false),
+  FORGE_ALLOW_IOS_SIMULATION: envBoolean.default(false),
   SMTP_HOST: z.string().optional().default(""),
   SMTP_PORT: z.coerce.number().default(587),
-  SMTP_SECURE: z.coerce.boolean().default(false),
+  SMTP_SECURE: envBoolean.default(false),
   SMTP_USER: z.string().optional().default(""),
   SMTP_PASSWORD: z.string().optional().default(""),
   SMTP_FROM: z.string().optional().default(""),
+  /** When true, password-reset responses include temporaryPassword even in production-like envs. */
+  SMTP_DEV_LOG: envBoolean.default(false),
   APP_PUBLIC_URL: z.string().optional().default(""),
   GITLAB_CONNECTION_NAME: z.string().optional().default("gitlab-internal"),
   GITLAB_BASE_URL: z.string().optional().default("http://10.10.20.51"),
@@ -92,21 +110,21 @@ const envSchema = z.object({
   GITHUB_BASE_URL: z.string().optional().default("https://github.com"),
   GITHUB_ACCESS_TOKEN: z.string().optional().default(""),
   GITHUB_WEBHOOK_SECRET: z.string().optional().default(""),
-  CATALOG_SYNC_ENABLED: z.coerce.boolean().default(true),
+  CATALOG_SYNC_ENABLED: envBoolean.default(true),
   CATALOG_SYNC_INTERVAL_MINUTES: z.coerce.number().default(30),
   CATALOG_REQUEST_TIMEOUT_MS: z.coerce.number().default(10000),
   CATALOG_TOKEN_ENCRYPTION_KEY: z.string().optional().default(""),
   CLICKUP_API_BASE_URL: z.string().optional().default("https://api.clickup.com/api/v2"),
   CLICKUP_TOKEN_ENCRYPTION_KEY: z.string().optional().default(""),
   CLICKUP_ACCESS_TOKEN: z.string().optional().default(""),
-  CLICKUP_SYNC_ENABLED: z.coerce.boolean().default(true),
+  CLICKUP_SYNC_ENABLED: envBoolean.default(true),
   CLICKUP_SYNC_INTERVAL_MINUTES: z.coerce.number().default(15),
   CLICKUP_MAX_PAGES_PER_SYNC: z.coerce.number().default(20),
   /** Fetch ClickUp comments during list sync (extra API call per task). */
-  CLICKUP_SYNC_COMMENTS: z.coerce.boolean().default(true),
+  CLICKUP_SYNC_COMMENTS: envBoolean.default(true),
   CLICKUP_WEBHOOK_BASE_URL: z.string().optional().default(""),
-  CLICKUP_TLS_INSECURE: z.coerce.boolean().default(false),
-  MICROSOFT_TODO_SYNC_ENABLED: z.coerce.boolean().default(true),
+  CLICKUP_TLS_INSECURE: envBoolean.default(false),
+  MICROSOFT_TODO_SYNC_ENABLED: envBoolean.default(true),
   MICROSOFT_TODO_SYNC_INTERVAL_MINUTES: z.coerce.number().default(30),
   CRON_SECRET: z.string().optional().default(""),
   /** AES key for workspace LLM API key at rest (32-byte base64 or 64-char hex). Falls back to CATALOG_TOKEN_ENCRYPTION_KEY. */
@@ -115,10 +133,34 @@ const envSchema = z.object({
   HELM_LLM_MOCK: z.string().optional().default(""),
   /** Soft daily LLM call cap when not stored in DB yet (DB dailyCap wins at runtime). */
   HELM_LLM_DAILY_CAP: z.coerce.number().default(200),
-  INSIGHTS_SCHEDULER_ENABLED: z.coerce.boolean().default(true),
+  INSIGHTS_SCHEDULER_ENABLED: envBoolean.default(true),
   INSIGHTS_SCHEDULER_INTERVAL_HOURS: z.coerce.number().default(24),
   /** Local prod-like compose only — never set on the LAN server. */
-  ALLOW_LOCALHOST_CORS_IN_PRODUCTION: z.coerce.boolean().default(false),
+  ALLOW_LOCALHOST_CORS_IN_PRODUCTION: envBoolean.default(false),
+
+  /**
+   * Streaming voice assistant infra.
+   * Enable/disable + model + API key are configured in Apps → Workspace AI (DB).
+   * This kill switch forces voice off regardless of UI.
+   */
+  VOICE_ASSISTANT_KILL_SWITCH: envBoolean.default(false),
+  /** @deprecated Prefer Workspace AI UI voiceEnabled; kept as alias for kill switch when true→false. */
+  VOICE_ASSISTANT_ENABLED: envBoolean.optional(),
+  SPEECH_PROVIDER: z.enum(["parakeet", "fake"]).default("fake"),
+  PARAKEET_MODEL: z.string().default("nvidia/parakeet-unified-en-0.6b"),
+  SPEECH_SERVICE_URL: z.string().default("http://localhost:8000"),
+  SPEECH_SERVICE_TOKEN: z.string().optional().default(""),
+  VOICE_SILENCE_FINALIZE_MS: z.coerce.number().int().min(300).max(10_000).default(1200),
+  VOICE_MAX_UTTERANCE_MS: z.coerce.number().int().min(5_000).max(600_000).default(120_000),
+  VOICE_MAX_CHUNK_BYTES: z.coerce.number().int().min(1024).max(512_000).default(64_000),
+  VOICE_MAX_SESSIONS_PER_MINUTE: z.coerce.number().int().min(1).max(60).default(6),
+  VOICE_MAX_CONCURRENT_PER_USER: z.coerce.number().int().min(1).max(5).default(1),
+  /** Force fake reasoning (CI). Otherwise uses workspace LLM settings. */
+  AI_REASONING_PROVIDER: z.enum(["workspace", "fake"]).default("workspace"),
+  AI_MAX_INPUT_TOKENS: z.coerce.number().int().min(512).max(200_000).default(8_000),
+  AI_MAX_OUTPUT_TOKENS: z.coerce.number().int().min(128).max(32_000).default(2_048),
+  AI_REQUEST_TIMEOUT_MS: z.coerce.number().int().min(5_000).max(300_000).default(60_000),
+  AI_DAILY_BUDGET_USD: z.coerce.number().min(0).max(10_000).default(5),
 });
 
 export type Env = z.infer<typeof envSchema>;

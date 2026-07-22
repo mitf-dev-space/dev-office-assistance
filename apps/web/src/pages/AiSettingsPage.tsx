@@ -26,6 +26,9 @@ type LlmSettingsDto = {
   apiKeyHint: string | null;
   assistLocale: string;
   dailyCap: number;
+  voiceEnabled: boolean;
+  voiceModel: string;
+  voiceDeepModel: string;
   lastTestedAt: string | null;
   lastTestOk: boolean | null;
   usage: { usedToday: number; dailyCap: number; remaining: number; resetsAtUtc: string };
@@ -62,6 +65,9 @@ export function AiSettingsPage() {
   const [clearApiKey, setClearApiKey] = useState(false);
   const [assistLocale, setAssistLocale] = useState("en");
   const [dailyCap, setDailyCap] = useState(200);
+  const [voiceEnabled, setVoiceEnabled] = useState(false);
+  const [voiceModel, setVoiceModel] = useState("openai/gpt-4o-mini");
+  const [voiceDeepModel, setVoiceDeepModel] = useState("openai/gpt-4o");
   const [testMsg, setTestMsg] = useState<string | null>(null);
 
   useEffect(() => {
@@ -73,6 +79,9 @@ export function AiSettingsPage() {
     setModel(s.model);
     setAssistLocale(s.assistLocale);
     setDailyCap(s.dailyCap);
+    setVoiceEnabled(s.voiceEnabled);
+    setVoiceModel(s.voiceModel);
+    setVoiceDeepModel(s.voiceDeepModel);
     setApiKey("");
     setClearApiKey(false);
   }, [settingsQuery.data]);
@@ -86,6 +95,9 @@ export function AiSettingsPage() {
         model,
         assistLocale,
         dailyCap,
+        voiceEnabled,
+        voiceModel,
+        voiceDeepModel,
       };
       if (clearApiKey) body.clearApiKey = true;
       else if (apiKey.trim()) body.apiKey = apiKey.trim();
@@ -148,7 +160,7 @@ export function AiSettingsPage() {
       <PageHeader
         eyebrow="Apps"
         title="Workspace AI"
-        lead="One workspace LLM for assist buttons and background insights. Prefer LM Studio locally; OpenRouter for cloud."
+        lead="One workspace LLM key for assist, insights, and the streaming voice assistant. Prefer LM Studio locally; OpenRouter for cloud."
         actions={<AiAssistStatusBadge />}
       />
 
@@ -206,7 +218,7 @@ export function AiSettingsPage() {
               settingsQuery.data?.hasApiKey
                 ? `Saved key: ${settingsQuery.data.apiKeyHint ?? "••••"} — leave blank to keep`
                 : providerPreset === "openrouter"
-                  ? "Required for OpenRouter"
+                  ? "Required — paste the sk-or-… key from openrouter.ai/keys"
                   : "Optional for LM Studio / Ollama"
             }
             value={apiKey}
@@ -246,6 +258,35 @@ export function AiSettingsPage() {
             disabled={!isLead}
           />
 
+          <Text fw={600} mt="sm">
+            Voice assistant
+          </Text>
+          <Text size="sm" c="dimmed">
+            Uses this same API key and base URL for reasoning after speech-to-text. Open{" "}
+            <a href="/apps/ai/voice">/apps/ai/voice</a> to speak. English STT only.
+          </Text>
+          <Switch
+            label="Enable voice assistant"
+            description="Requires a reachable speech service (Parakeet or local fake) and a saved API key when the provider needs one."
+            checked={voiceEnabled}
+            onChange={(e) => setVoiceEnabled(e.currentTarget.checked)}
+            disabled={!isLead}
+          />
+          <TextInput
+            label="Voice reasoning model"
+            description="Used for voice turns (can differ from assist model). Example: openai/gpt-4o-mini"
+            value={voiceModel}
+            onChange={(e) => setVoiceModel(e.currentTarget.value)}
+            disabled={!isLead}
+          />
+          <TextInput
+            label="Voice deep model"
+            description="Reserved for heavier analysis turns"
+            value={voiceDeepModel}
+            onChange={(e) => setVoiceDeepModel(e.currentTarget.value)}
+            disabled={!isLead}
+          />
+
           {settingsQuery.data ? (
             <Text size="sm" c="dimmed">
               Usage today: {settingsQuery.data.usage.usedToday} / {settingsQuery.data.usage.dailyCap}{" "}
@@ -270,10 +311,16 @@ export function AiSettingsPage() {
               </Button>
               <Button
                 variant="light"
-                loading={testMut.isPending}
+                loading={saveMut.isPending || testMut.isPending}
                 onClick={() => {
                   setTestMsg(null);
-                  testMut.mutate();
+                  // Test uses the saved workspace key — persist form values first.
+                  saveMut.mutate(undefined, {
+                    onSuccess: () => testMut.mutate(),
+                    onError: (err) => {
+                      setTestMsg(err instanceof Error ? err.message : "Save failed before test");
+                    },
+                  });
                 }}
               >
                 Test connection

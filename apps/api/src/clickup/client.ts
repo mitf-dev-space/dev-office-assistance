@@ -18,6 +18,41 @@ export class ClickUpApiError extends Error {
 
 type Json = Record<string, unknown>;
 
+function isNonRetryableNetworkError(err: unknown): boolean {
+  if (!(err instanceof Error)) return false;
+  if (err.name === "AbortError") return true;
+  const msg = err.message.toLowerCase();
+  if (msg.includes("abort") || msg.includes("timeout") || msg.includes("fetch failed")) return true;
+  const cause = err.cause instanceof Error ? err.cause : null;
+  const code =
+    cause && "code" in cause && typeof (cause as { code?: unknown }).code === "string"
+      ? (cause as { code: string }).code
+      : "";
+  return (
+    code === "ETIMEDOUT" ||
+    code === "ECONNREFUSED" ||
+    code === "ENOTFOUND" ||
+    code === "UND_ERR_CONNECT_TIMEOUT" ||
+    code === "ECONNRESET"
+  );
+}
+
+function formatClickUpNetworkError(err: unknown): Error {
+  if (!(err instanceof Error)) return new Error("ClickUp request failed");
+  if (!isNonRetryableNetworkError(err) && !(err.name === "AbortError")) return err;
+  const cause = err.cause instanceof Error ? err.cause : null;
+  const code =
+    cause && "code" in cause && typeof (cause as { code?: unknown }).code === "string"
+      ? (cause as { code: string }).code
+      : err.name === "AbortError"
+        ? "TIMEOUT"
+        : "NETWORK";
+  return new Error(
+    `Could not reach api.clickup.com (${code}). The Helm API host has no outbound HTTPS — ` +
+      "allow egress to api.clickup.com:443 (or set HTTPS_PROXY) then recreate the API container.",
+  );
+}
+
 export class ClickUpClient {
   private readonly baseUrl: string;
   private readonly token: string;
@@ -27,8 +62,9 @@ export class ClickUpClient {
   constructor(opts: ClickUpClientOptions) {
     this.baseUrl = opts.baseUrl.replace(/\/$/, "");
     this.token = opts.token.trim();
-    this.timeoutMs = opts.timeoutMs ?? 15_000;
-    this.maxRetries = opts.maxRetries ?? 3;
+    this.timeoutMs = opts.timeoutMs ?? 12_000;
+    // One retry is enough for 429/transient blips; connection failures should not stack timeouts.
+    this.maxRetries = opts.maxRetries ?? 1;
   }
 
   private async request<T>(
@@ -84,15 +120,16 @@ export class ClickUpClient {
       } catch (e) {
         lastErr = e;
         if (e instanceof ClickUpApiError) throw e;
-        if (attempt < this.maxRetries) {
-          await sleep(500 * (attempt + 1));
-          continue;
+        // Do not burn 4× timeouts when the host has no egress (common on LAN servers).
+        if (isNonRetryableNetworkError(e) || attempt >= this.maxRetries) {
+          break;
         }
+        await sleep(500 * (attempt + 1));
       } finally {
         clearTimeout(timer);
       }
     }
-    throw lastErr instanceof Error ? lastErr : new Error("ClickUp request failed");
+    throw formatClickUpNetworkError(lastErr);
   }
 
   getTeams() {

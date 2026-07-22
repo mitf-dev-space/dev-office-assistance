@@ -85,7 +85,7 @@ npm run db:seed
 npm run dev
 ```
 
-## Sign-in and first-login behavior
+## Sign-in and password behavior
 
 After `npm run db:seed`, these users exist:
 
@@ -96,8 +96,11 @@ After `npm run db:seed`, these users exist:
 | `forge-mobile-lead@local.dev` | `ForgeMobileLead1!` (Forge mobile lead — builds + settings) |
 
 - Override defaults during seed with `SEED_LEAD_PASSWORD`, `SEED_ASSISTANT_PASSWORD`, and `SEED_FORGE_MOBILE_LEAD_PASSWORD` (legacy `SEED_FORGE_ADMIN_PASSWORD` still accepted).
-- Seeded/admin-created users must complete first login by changing password (`mustChangePassword`) and setting authenticator-based MFA (TOTP).
 - App sessions use local JWT auth backed by PostgreSQL user records.
+- **Self-serve:** any signed-in user can change their password under **Profile** (`POST /api/me/password`).
+- **Lead reset:** leads use **Sign-in users** (`/settings/users`) or `POST /api/users/:userId/reset-password`. That sets a temporary password and `mustChangePassword`. On next login the user gets a restricted session and must complete **Set a new password** (`POST /api/auth/complete-password-change`), then sign in again.
+- Local/dev reset responses include `temporaryPassword` so QA does not require SMTP. Optional Mailpit: `docker compose --profile forge-dev up -d mailpit`.
+- API regression: `node scripts/force-password-e2e.mjs` (API on `:4000`).
 
 ## Optional integrations
 
@@ -116,16 +119,16 @@ After `npm run db:seed`, these users exist:
 - To Do and ClickUp tasks share the `ExternalWorkItem` table; each provider has its own sync cron.
 - See [docs/integrations/clickup-architecture.md](docs/integrations/clickup-architecture.md).
 
-### SMTP (invite/reset emails)
+### SMTP (reset emails)
 
-- If `SMTP_HOST` and `SMTP_FROM` are configured, leads can invite users with temporary passwords and trigger password resets for other users.
-- Invited/reset users then follow the same first-login + MFA flow.
+- If `SMTP_HOST` and `SMTP_FROM` are configured, lead password resets also email the temporary password.
+- Reset users must complete the forced change-password flow on next login (no MFA in the current build).
 
 ## Feature map
 
 | Area | What it does | Routes/pages |
 |------|---------------|--------------|
-| Authentication | Local JWT sessions, first-login password change, TOTP MFA | `/api/auth/*`, `/api/me*`, Login + First-time setup pages |
+| Authentication | Local JWT, lead reset + forced change, Profile self-change | `/api/auth/*`, `/api/me*`, `/api/users*`, Login, Change password, Sign-in users |
 | Triage | Create/manage triage items, priority queue, activity timeline, attachments, calendar export | `/api/triage-items*`, `/api/triage-attachments/*` |
 | Planning | Planning initiatives and triage linking | `/api/planning*` |
 | Team management | Developer directory and team memberships | `/api/developers*`, `/api/team-memberships*` |

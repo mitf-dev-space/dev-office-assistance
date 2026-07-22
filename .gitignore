@@ -22,3 +22,9 @@ tmp/
 apps/api/data/forge-artifacts/
 apps/api/data/uploads/
 
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
