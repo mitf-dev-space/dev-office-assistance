@@ -27,8 +27,9 @@ export function ForgeBuildProfilesPanel() {
   const [createOpen, setCreateOpen] = useState(false);
   const [applicationId, setApplicationId] = useState<string | null>(null);
   const [name, setName] = useState("");
-  const [dartEntryPoint, setDartEntryPoint] = useState("lib/main.dart");
-  const [androidBuildMode, setAndroidBuildMode] = useState<string | null>("debug");
+  const [dartEntryPoint, setDartEntryPoint] = useState("lib/main_mock.dart");
+  const [androidBuildMode, setAndroidBuildMode] = useState<string | null>("release");
+  const [iosExportMethod, setIosExportMethod] = useState<string | null>("ad-hoc");
   const [formError, setFormError] = useState<string | null>(null);
   const { page, setPage, limit, setLimit, searchInput, search, onSearchChange } =
     useListQueryState(25);
@@ -69,7 +70,8 @@ export function ForgeBuildProfilesPanel() {
           name: name.trim(),
           dartEntryPoint: dartEntryPoint.trim(),
           androidArtifactType: "apk",
-          androidBuildMode: androidBuildMode ?? "debug",
+          androidBuildMode: androidBuildMode ?? "release",
+          iosExportMethod: iosExportMethod ?? undefined,
           timeoutMinutes: 90,
           isActive: true,
         }),
@@ -83,6 +85,9 @@ export function ForgeBuildProfilesPanel() {
       await qc.invalidateQueries({ queryKey: ["forge", "build-profiles"] });
       setCreateOpen(false);
       setName("");
+      setDartEntryPoint("lib/main_mock.dart");
+      setAndroidBuildMode("release");
+      setIosExportMethod("ad-hoc");
       setFormError(null);
     },
     onError: (err: Error) => setFormError(err.message),
@@ -110,7 +115,7 @@ export function ForgeBuildProfilesPanel() {
         <div>
           <Text fw={600}>Build profiles</Text>
           <Text size="sm" c="dimmed">
-            Flutter entry point and Android build mode per application.
+            Flutter entry point, Android mode, and iOS export method per application.
           </Text>
         </div>
         <Button onClick={() => setCreateOpen(true)}>Add profile</Button>
@@ -127,7 +132,7 @@ export function ForgeBuildProfilesPanel() {
             <Table.Tr>
               <Table.Th>Profile</Table.Th>
               <Table.Th>Application</Table.Th>
-              <Table.Th>Mode</Table.Th>
+              <Table.Th>Mode / iOS export</Table.Th>
               <Table.Th>Status</Table.Th>
               <Table.Th />
             </Table.Tr>
@@ -139,6 +144,7 @@ export function ForgeBuildProfilesPanel() {
                 <Table.Td>{p.applicationName}</Table.Td>
                 <Table.Td>
                   {p.androidBuildMode} / {p.androidArtifactType}
+                  {p.iosExportMethod ? ` · iOS ${p.iosExportMethod}` : ""}
                 </Table.Td>
                 <Table.Td>
                   <Badge color={p.isActive ? "green" : "gray"} variant="light">
@@ -215,6 +221,19 @@ export function ForgeBuildProfilesPanel() {
               ]}
               value={androidBuildMode}
               onChange={setAndroidBuildMode}
+              disabled={createMut.isPending}
+            />
+            <Select
+              label="iOS export method"
+              data={[
+                { value: "ad-hoc", label: "ad-hoc" },
+                { value: "development", label: "development" },
+                { value: "enterprise", label: "enterprise" },
+                { value: "app-store", label: "app-store" },
+              ]}
+              value={iosExportMethod}
+              onChange={setIosExportMethod}
+              clearable
               disabled={createMut.isPending}
             />
             {formError && (

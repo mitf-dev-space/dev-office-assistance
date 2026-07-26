@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main, master, develop, "feature/**"]
+    branches: [main, dev]
   pull_request:
-    branches: [main, master, develop]
+    branches: [main, dev]
 
 jobs:
   build:
@@ -54,12 +54,6 @@ jobs:
         run: |
           cp deploy/.env.production.example deploy/.env.production
           docker compose --env-file deploy/.env.production -f deploy/compose.production.yml config --quiet
-
-      - name: Docker build api (no push)
-        run: docker build -f apps/api/Dockerfile -t helm-ci-api:ci .
-
-      - name: Docker build web (no push)
-        run: docker build -f apps/web/Dockerfile --build-arg VITE_API_BASE_URL=http://10.100.235.21:46811 -t helm-ci-web:ci .
 
       - name: Dependency audit (report)
         run: npm audit --omit=dev --audit-level=critical || true

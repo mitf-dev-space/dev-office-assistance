@@ -20,3 +20,8 @@ export {
   isManualRetryEligible,
   isAutoRetryEligible,
 } from "./retryPolicy.js";
+
+export {
+  claimablePlatformsForRunner,
+  runnerCanClaimPlatform,
+} from "./runnerClaim.js";

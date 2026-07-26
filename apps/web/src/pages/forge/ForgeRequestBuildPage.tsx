@@ -25,6 +25,7 @@ export function ForgeRequestBuildPage() {
   const [gitReference, setGitReference] = useState("dev");
   const [requestNote, setRequestNote] = useState("");
   const [android, setAndroid] = useState(true);
+  const [ios, setIos] = useState(false);
   const [publishToSharedFolder, setPublishToSharedFolder] = useState(false);
   const [notifyEmail, setNotifyEmail] = useState("");
 
@@ -33,9 +34,17 @@ export function ForgeRequestBuildPage() {
     [catalogQuery.data?.applications, applicationId],
   );
 
+  const platforms = useMemo(() => {
+    const list: Array<"Android" | "iOS"> = [];
+    if (android && selectedApp?.androidEnabled !== false) list.push("Android");
+    if (ios && selectedApp?.iosEnabled) list.push("iOS");
+    return list;
+  }, [android, ios, selectedApp?.androidEnabled, selectedApp?.iosEnabled]);
+
   const createMut = useMutation({
     mutationFn: async () => {
       if (!applicationId || !profileId) throw new Error("missing_selection");
+      if (platforms.length === 0) throw new Error("select_platform");
       const res = await request("/api/forge/build-requests", {
         method: "POST",
         body: JSON.stringify({
@@ -44,7 +53,7 @@ export function ForgeRequestBuildPage() {
           gitReferenceType: "branch",
           gitReference: gitReference.trim(),
           requestNote: requestNote.trim() || undefined,
-          platforms: android ? ["Android"] : [],
+          platforms,
           publishToSharedFolder,
           notifyEmail: publishToSharedFolder ? notifyEmail.trim() : undefined,
         }),
@@ -66,7 +75,7 @@ export function ForgeRequestBuildPage() {
       <PageHeader
         eyebrow="Forge"
         title="Request build"
-        lead="Select application, profile, and Git branch. Optionally publish the APK to the bank/app shared folder and notify a PM by email."
+        lead="Select application, profile, and Git branch. Optionally publish the artifact to the bank/app shared folder and notify a PM by email."
         actions={
           <Link to="/forge/builds" className="btn btn-ghost">
             View builds
@@ -90,8 +99,11 @@ export function ForgeRequestBuildPage() {
               const v = e.target.value;
               setApplicationId(v);
               setProfileId("");
+              setIos(false);
               const app = catalogQuery.data?.applications.find((a) => a.id === v);
               if (app?.defaultBranch) setGitReference(app.defaultBranch);
+              if (app && !app.androidEnabled) setAndroid(false);
+              else setAndroid(true);
             }}
             required
           >
@@ -138,9 +150,26 @@ export function ForgeRequestBuildPage() {
               id="forge-android"
               type="checkbox"
               checked={android}
+              disabled={selectedApp != null && !selectedApp.androidEnabled}
               onChange={(e) => setAndroid(e.target.checked)}
             />
             Build Android
+          </label>
+        </div>
+
+        <div className="field field--row">
+          <label htmlFor="forge-ios">
+            <input
+              id="forge-ios"
+              type="checkbox"
+              checked={ios}
+              disabled={!selectedApp?.iosEnabled}
+              onChange={(e) => setIos(e.target.checked)}
+            />
+            Build iOS
+            {!selectedApp?.iosEnabled ? (
+              <span className="muted"> (enable iOS on the application first)</span>
+            ) : null}
           </label>
         </div>
 
@@ -162,7 +191,7 @@ export function ForgeRequestBuildPage() {
               checked={publishToSharedFolder}
               onChange={(e) => setPublishToSharedFolder(e.target.checked)}
             />
-            Publish to shared folder (copy APK for PM)
+            Publish to shared folder (copy artifact for PM)
           </label>
         </div>
 
@@ -202,7 +231,7 @@ export function ForgeRequestBuildPage() {
             disabled={
               !applicationId ||
               !profileId ||
-              !android ||
+              platforms.length === 0 ||
               createMut.isPending ||
               (publishToSharedFolder && !notifyEmail.trim())
             }

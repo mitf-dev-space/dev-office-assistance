@@ -7,6 +7,7 @@ import {
   type ForgeBuildStatus as DomainStatus,
 } from "../domain/buildStatus.js";
 import { calculateOverallBuildStatus } from "../domain/overallStatus.js";
+import { claimablePlatformsForRunner } from "../domain/runnerClaim.js";
 
 export async function transitionPlatformBuildStatus(
   platformBuildId: string,
@@ -79,22 +80,6 @@ export async function refreshBuildRequestOverallStatus(buildRequestId: string) {
   return { previousOverall, newOverall: overall };
 }
 
-export type ClaimedJob = {
-  platformBuildId: string;
-  buildRequestId: string;
-  platform: ForgePlatform;
-  repositoryUrl: string;
-  projectSubpath: string | null;
-  defaultBranch: string;
-  gitReferenceType: string;
-  gitReference: string;
-  dartEntryPoint: string;
-  flutterFlavor: string | null;
-  androidArtifactType: string;
-  androidBuildMode: string;
-  applicationName: string;
-};
-
 const RUNNER_STALE_MS = 2 * 60 * 1000;
 const BUILD_STALE_MS = 45 * 60 * 1000;
 
@@ -163,6 +148,23 @@ export async function reconcileStaleForgeJobs(now = new Date()): Promise<number>
   return reconciled;
 }
 
+export type ClaimedJob = {
+  platformBuildId: string;
+  buildRequestId: string;
+  platform: ForgePlatform;
+  repositoryUrl: string;
+  projectSubpath: string | null;
+  defaultBranch: string;
+  gitReferenceType: string;
+  gitReference: string;
+  dartEntryPoint: string;
+  flutterFlavor: string | null;
+  androidArtifactType: string;
+  androidBuildMode: string;
+  iosExportMethod: string | null;
+  applicationName: string;
+};
+
 export async function claimNextPlatformBuild(
   runnerId: string,
   supportedPlatforms: ForgePlatform[],
@@ -175,10 +177,18 @@ export async function claimNextPlatformBuild(
       return null;
     }
 
+    const platforms = claimablePlatformsForRunner(
+      runner.operatingSystem,
+      supportedPlatforms.length ? supportedPlatforms : runner.supportedPlatforms,
+    );
+    if (platforms.length === 0) {
+      return null;
+    }
+
     const next = await tx.forgePlatformBuild.findFirst({
       where: {
-        status: "Queued",
-        platform: { in: supportedPlatforms },
+        status: { in: ["Queued", "WaitingForCompatibleRunner"] },
+        platform: { in: platforms },
       },
       orderBy: { queuedAtUtc: "asc" },
       include: {
@@ -238,6 +248,7 @@ export async function claimNextPlatformBuild(
       flutterFlavor: profile.flutterFlavor,
       androidArtifactType: profile.androidArtifactType,
       androidBuildMode: profile.androidBuildMode,
+      iosExportMethod: profile.iosExportMethod,
       applicationName: app.name,
     };
   });

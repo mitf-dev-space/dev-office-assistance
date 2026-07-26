@@ -211,6 +211,9 @@ function assertProductionSafe(data: Env): void {
   }
 }
 
+/** Stable local-only fallback so ClickUp/catalog token storage works without .env setup. */
+const LOCAL_DEV_TOKEN_ENCRYPTION_KEY = "local-dev-catalog-token-encryption-key";
+
 export function loadEnv(): Env {
   const parsed = envSchema.safeParse(process.env);
   if (!parsed.success) {
@@ -222,6 +225,14 @@ export function loadEnv(): Env {
   const data = parsed.data;
   if (!data.GITLAB_API_URL) {
     data.GITLAB_API_URL = `${data.GITLAB_BASE_URL.replace(/\/$/, "")}/api/v4`;
+  }
+  // Non-production: ensure token encryption works out of the box for ClickUp/catalog.
+  if (
+    data.NODE_ENV !== "production" &&
+    !data.CATALOG_TOKEN_ENCRYPTION_KEY &&
+    !data.CLICKUP_TOKEN_ENCRYPTION_KEY
+  ) {
+    data.CATALOG_TOKEN_ENCRYPTION_KEY = LOCAL_DEV_TOKEN_ENCRYPTION_KEY;
   }
   assertProductionSafe(data);
   return data;
