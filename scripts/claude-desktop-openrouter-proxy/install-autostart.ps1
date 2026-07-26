@@ -12,13 +12,34 @@ if (-not (Test-Path $WatchScript)) {
   throw "Missing watch.ps1 at $WatchScript"
 }
 
-$pwsh = (Get-Command pwsh -ErrorAction SilentlyContinue)?.Source
-if (-not $pwsh) {
-  $pwsh = (Get-Command powershell -ErrorAction SilentlyContinue)?.Source
+# Prefer the WindowsApps execution alias — it survives PowerShell Store updates.
+# A versioned WindowsApps\Microsoft.PowerShell_* path goes stale (e.g. 7.6.3 → 7.6.4).
+function Resolve-PwshPath {
+  $alias = Join-Path $env:LOCALAPPDATA "Microsoft\WindowsApps\pwsh.exe"
+  if (Test-Path $alias) { return $alias }
+
+  $pkg = Get-AppxPackage -Name "Microsoft.PowerShell" -ErrorAction SilentlyContinue |
+    Sort-Object { [version]$_.Version } -Descending |
+    Select-Object -First 1
+  if ($pkg) {
+    $candidate = Join-Path $pkg.InstallLocation "pwsh.exe"
+    if (Test-Path $candidate) { return $candidate }
+  }
+
+  $fromPath = (Get-Command pwsh -ErrorAction SilentlyContinue)?.Source
+  if ($fromPath -and (Test-Path $fromPath)) { return $fromPath }
+
+  $powershell = (Get-Command powershell -ErrorAction SilentlyContinue)?.Source
+  if ($powershell) { return $powershell }
+
+  return $null
 }
+
+$pwsh = Resolve-PwshPath
 if (-not $pwsh) {
   throw "Neither pwsh nor powershell found on PATH"
 }
+Write-Host "Using PowerShell: $pwsh"
 
 # Remove prior registration if present
 Unregister-ScheduledTask -TaskName $TaskName -Confirm:$false -ErrorAction SilentlyContinue

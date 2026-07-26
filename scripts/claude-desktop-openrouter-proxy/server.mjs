@@ -13,7 +13,8 @@
  *   Gateway base URL:  http://127.0.0.1:8787
  *   Gateway API key:   local
  *   Auth scheme:       bearer
- *   Model IDs:         claude-sonnet-4-5, claude-haiku-4-5, claude-opus-4-5
+ *   Model IDs:         claude-sonnet-5, claude-haiku-5, claude-opus-5
+ *                      (also accepts claude-*-4-5 for older Desktop builds)
  */
 
 import http from "node:http";
@@ -28,21 +29,33 @@ const PORT = Number(process.env.PORT || 8787);
 const UPSTREAM = (process.env.OPENROUTER_BASE_URL || "https://openrouter.ai/api").replace(/\/$/, "");
 const API_KEY = process.env.OPENROUTER_API_KEY || "";
 
+const HAIKU = process.env.MODEL_HAIKU || "deepseek/deepseek-chat";
+const SONNET = process.env.MODEL_SONNET || "moonshotai/kimi-k3";
+const OPUS = process.env.MODEL_OPUS || "google/gemini-2.5-pro";
+
 /** Claude Desktop picker ID → OpenRouter model slug */
 const MODEL_MAP = {
-  "claude-haiku-4-5": process.env.MODEL_HAIKU || "deepseek/deepseek-chat",
-  "claude-sonnet-4-5": process.env.MODEL_SONNET || "moonshotai/kimi-k3",
-  "claude-opus-4-5": process.env.MODEL_OPUS || "google/gemini-2.5-pro",
+  // Claude 4.5 picker IDs (older Desktop builds)
+  "claude-haiku-4-5": HAIKU,
+  "claude-sonnet-4-5": SONNET,
+  "claude-opus-4-5": OPUS,
+  // Claude 5 picker IDs (Sonnet 5 / Opus 5 Desktop builds)
+  "claude-haiku-5": HAIKU,
+  "claude-sonnet-5": SONNET,
+  "claude-opus-5": OPUS,
   // Dated IDs Claude Desktop sometimes emits internally
-  "claude-haiku-4-5-20251001": process.env.MODEL_HAIKU || "deepseek/deepseek-chat",
-  "claude-sonnet-4-5-20250929": process.env.MODEL_SONNET || "moonshotai/kimi-k3",
-  "claude-opus-4-5-20251101": process.env.MODEL_OPUS || "google/gemini-2.5-pro",
+  "claude-haiku-4-5-20251001": HAIKU,
+  "claude-sonnet-4-5-20250929": SONNET,
+  "claude-opus-4-5-20251101": OPUS,
 };
 
 const LABELS = {
   "claude-haiku-4-5": "Haiku -> DeepSeek Chat",
   "claude-sonnet-4-5": "Sonnet -> Kimi K3",
   "claude-opus-4-5": "Opus -> Gemini 2.5 Pro",
+  "claude-haiku-5": "Haiku 5 -> DeepSeek Chat",
+  "claude-sonnet-5": "Sonnet 5 -> Kimi K3",
+  "claude-opus-5": "Opus 5 -> Gemini 2.5 Pro",
 };
 
 function loadDotEnv(path) {
@@ -84,7 +97,15 @@ function resolveUpstreamModel(requested) {
 }
 
 function modelsPayload() {
-  const data = ["claude-haiku-4-5", "claude-sonnet-4-5", "claude-opus-4-5"].map((id) => ({
+  const ids = [
+    "claude-haiku-5",
+    "claude-sonnet-5",
+    "claude-opus-5",
+    "claude-haiku-4-5",
+    "claude-sonnet-4-5",
+    "claude-opus-4-5",
+  ];
+  const data = ids.map((id) => ({
     id,
     display_name: LABELS[id] || id,
     type: "model",
@@ -278,5 +299,6 @@ server.listen(PORT, "127.0.0.1", () => {
   console.log(`  Base URL:  http://127.0.0.1:${PORT}`);
   console.log("  API key:   local");
   console.log("  Auth:      bearer");
-  console.log("  Models:    claude-sonnet-4-5, claude-haiku-4-5, claude-opus-4-5");
+  console.log("  Models:    claude-sonnet-5, claude-haiku-5, claude-opus-5");
+  console.log("             (+ claude-*-4-5 aliases for older Desktop)");
 });
