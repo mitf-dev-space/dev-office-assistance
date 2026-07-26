@@ -37,6 +37,7 @@ export function ForgeRunnersPanel() {
   const qc = useQueryClient();
   const [createOpen, setCreateOpen] = useState(false);
   const [name, setName] = useState("local-windows-android");
+  const [operatingSystem, setOperatingSystem] = useState<string | null>("Windows");
   const [platforms, setPlatforms] = useState<string[]>(["Android"]);
   const [createdToken, setCreatedToken] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
@@ -67,7 +68,7 @@ export function ForgeRunnersPanel() {
         method: "POST",
         body: JSON.stringify({
           name: name.trim(),
-          operatingSystem: "Windows",
+          operatingSystem: operatingSystem ?? "Windows",
           architecture: "x64",
           supportedPlatforms: platforms,
           maximumConcurrentJobs: 1,
@@ -167,8 +168,9 @@ export function ForgeRunnersPanel() {
             </Text>
             <Code block>{createdToken}</Code>
             <Text size="sm">
-              Or run <Code>scripts/forge/register-local-runner.ps1</Code> to write{" "}
-              <Code>%USERPROFILE%\.forge\agent.env</Code>.
+              Or run <Code>scripts/forge/register-local-runner.ps1</Code> (Windows) /{" "}
+              <Code>scripts/forge/register-local-runner.sh</Code> (macOS) to write{" "}
+              <Code>~/.forge/agent.env</Code>.
             </Text>
             <Group justify="flex-end">
               <Button onClick={() => setCreateOpen(false)}>Close</Button>
@@ -189,7 +191,21 @@ export function ForgeRunnersPanel() {
                 required
                 disabled={createMut.isPending}
               />
-              <Select label="Operating system" data={["Windows", "macOS", "Linux"]} value="Windows" disabled />
+              <Select
+                label="Operating system"
+                data={["Windows", "macOS", "Linux"]}
+                value={operatingSystem}
+                onChange={(value) => {
+                  setOperatingSystem(value);
+                  if (value === "macOS") {
+                    setName((n) => (n === "local-windows-android" ? "local-macos-mobile" : n));
+                    setPlatforms((p) =>
+                      p.includes("iOS") ? p : [...p, "iOS"].filter((x, i, a) => a.indexOf(x) === i),
+                    );
+                  }
+                }}
+                disabled={createMut.isPending}
+              />
               <MultiSelect
                 label="Supported platforms"
                 data={["Android", "iOS"]}

@@ -43,6 +43,8 @@ services:
       RATE_LIMIT_MAX: ${RATE_LIMIT_MAX:-200}
       M365_TENANT_ID: ${M365_TENANT_ID:-}
       M365_CLIENT_ID: ${M365_CLIENT_ID:-}
+      CATALOG_TOKEN_ENCRYPTION_KEY: ${CATALOG_TOKEN_ENCRYPTION_KEY:-local-dev-catalog-token-encryption-key}
+      CLICKUP_TOKEN_ENCRYPTION_KEY: ${CLICKUP_TOKEN_ENCRYPTION_KEY:-}
     ports:
       - "4000:4000"
     depends_on:

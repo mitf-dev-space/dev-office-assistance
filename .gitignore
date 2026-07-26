@@ -15,6 +15,7 @@ docker/corporate-ca.pem
 data/uploads
 data/forge-artifacts
 data/forge-workspaces
+data/forge-e2e
 
 tmp/
 

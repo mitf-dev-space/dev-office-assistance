@@ -175,7 +175,7 @@ async function main() {
           projectSubpath: "mobile/gateway_tester",
           defaultBranch: "dev",
           androidEnabled: true,
-          iosEnabled: false,
+          iosEnabled: true,
           isActive: true,
         },
       });
@@ -187,7 +187,7 @@ async function main() {
           projectSubpath: "mobile/gateway_tester",
           defaultBranch: "dev",
           androidEnabled: true,
-          iosEnabled: false,
+          iosEnabled: true,
           isActive: true,
         },
       });
@@ -210,7 +210,38 @@ async function main() {
         },
       });
     }
-    console.log("Seeded Forge application Masarat Gateway Tester + debug-demo profile (JUM).");
+
+    const existingMockProfile = await prisma.forgeBuildProfile.findFirst({
+      where: { applicationId: gatewayApp.id, name: "mock-release" },
+    });
+    if (!existingMockProfile) {
+      await prisma.forgeBuildProfile.create({
+        data: {
+          applicationId: gatewayApp.id,
+          name: "mock-release",
+          description: "Mock release APK/IPA (main_mock + build_runner recipe).",
+          dartEntryPoint: "lib/main_mock.dart",
+          androidArtifactType: "apk",
+          androidBuildMode: "release",
+          iosExportMethod: "ad-hoc",
+          timeoutMinutes: 120,
+          isActive: true,
+        },
+      });
+    } else {
+      await prisma.forgeBuildProfile.update({
+        where: { id: existingMockProfile.id },
+        data: {
+          dartEntryPoint: "lib/main_mock.dart",
+          androidBuildMode: "release",
+          iosExportMethod: "ad-hoc",
+          isActive: true,
+        },
+      });
+    }
+    console.log(
+      "Seeded Forge application Masarat Gateway Tester + debug-demo + mock-release profiles (JUM).",
+    );
   }
 
   await seedCatalog(prisma);

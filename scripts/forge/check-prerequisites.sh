@@ -25,17 +25,30 @@ check_cmd() {
   fi
 }
 
-check_cmd ".NET SDK" dotnet false
 check_cmd "Git" git true
 check_cmd "Flutter" flutter true
-check_cmd "Xcode CLI" xcodebuild true
+check_cmd "Node.js" node true
+check_cmd "Xcode CLI (xcodebuild)" xcodebuild true
+check_cmd "CocoaPods" pod false
 check_cmd "Java" java false
 check_cmd "Android SDK (adb)" adb false
+
+if [[ "$(xcode-select -p 2>/dev/null || true)" == *"CommandLineTools"* ]]; then
+  echo "[MISSING (required)] Full Xcode.app (xcode-select currently points at Command Line Tools)"
+  missing_required+=("Full Xcode.app")
+fi
+
+identities="$(security find-identity -v -p codesigning 2>/dev/null | grep -c 'Apple' || true)"
+if [[ "${identities}" -ge 1 ]]; then
+  echo "[OK] Code signing identities (${identities})"
+else
+  echo "[MISSING (optional for Android-only)] Code signing identities — required for real IPA"
+fi
 
 if ((${#missing_required[@]} > 0)); then
   echo "Missing: ${missing_required[*]}"
   exit 1
 fi
 
-echo "Mac worker prerequisites OK (Loop 14+)."
+echo "Mac worker prerequisites OK."
 exit 0

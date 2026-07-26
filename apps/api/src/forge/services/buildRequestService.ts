@@ -114,6 +114,18 @@ export async function createForgeBuildRequest(
     platforms.push(p);
   }
 
+  const hasMacOsIosRunner = platforms.includes("iOS")
+    ? Boolean(
+        await prisma.forgeRunner.findFirst({
+          where: {
+            operatingSystem: "macOS",
+            supportedPlatforms: { has: "iOS" },
+          },
+          select: { id: true },
+        }),
+      )
+    : true;
+
   const request = await prisma.forgeBuildRequest.create({
     data: {
       applicationId: input.applicationId,
@@ -129,7 +141,10 @@ export async function createForgeBuildRequest(
       platformBuilds: {
         create: platforms.map((platform) => ({
           platform,
-          status: "Queued",
+          status:
+            platform === "iOS" && !hasMacOsIosRunner
+              ? "WaitingForCompatibleRunner"
+              : "Queued",
         })),
       },
     },

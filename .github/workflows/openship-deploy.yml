@@ -1,0 +1,55 @@
+# Openship local trial — optional CI trigger alongside GitHub push webhooks.
+# Push-to-deploy is handled by the Openship GitHub webhook on mac-a.
+# Use this workflow for manual / self-hosted redeploys when the tunnel is down.
+name: Openship deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: Branch to deploy
+        required: false
+        default: main
+      force_all:
+        description: Rebuild all services
+        type: boolean
+        required: false
+        default: false
+
+jobs:
+  deploy:
+    name: Deploy to Openship (mac-a)
+    runs-on: [self-hosted, mac-a]
+    steps:
+      - name: Trigger Openship deployment
+        env:
+          OPENSHIP_TOKEN: ${{ secrets.OPENSHIP_TOKEN }}
+          OPENSHIP_API: ${{ vars.OPENSHIP_API || 'http://127.0.0.1:4000/api' }}
+          PROJECT_ID: proj_FYo_BZeYAe7wgkVJ
+          BRANCH: ${{ inputs.branch || github.ref_name }}
+          FORCE_ALL: ${{ inputs.force_all }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${OPENSHIP_TOKEN:-}" ]]; then
+            echo "Missing OPENSHIP_TOKEN repo secret (Openship PAT)."
+            exit 1
+          fi
+          body=$(python3 - <<PY
+          import json, os
+          print(json.dumps({
+            "projectId": os.environ["PROJECT_ID"],
+            "branch": os.environ["BRANCH"],
+            "deployTarget": "local",
+            "runtimeMode": "docker",
+            "serviceDeploymentMode": "services",
+            "publicEndpoints": [],
+            "buildStrategy": "local",
+            "forceAll": os.environ.get("FORCE_ALL", "false").lower() == "true",
+          }))
+          PY
+          )
+          curl -fsS -X POST "${OPENSHIP_API}/deployments/build/access" \
+            -H "Authorization: Bearer ${OPENSHIP_TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d "$body"
+          echo

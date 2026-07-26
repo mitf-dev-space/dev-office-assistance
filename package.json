@@ -13,6 +13,7 @@
     "test": "npm run test -w @office/api",
     "test:speech": "cd services/speech && python -m pytest -q",
     "test:voice-ui": "tsx --test apps/web/src/features/voice/state/machine.test.ts",
+    "test:forge-worker": "node --import tsx --test apps/forge-worker/src/buildRecipe.test.ts",
     "db:migrate": "npm run prisma:migrate -w @office/api",
     "db:generate": "npm run prisma:generate -w @office/api",
     "db:seed": "npm run db:seed -w @office/api",
@@ -23,7 +24,8 @@
     "docker:logs": "docker compose logs -f api web"
   },
   "devDependencies": {
-    "concurrently": "^9.1.2"
+    "concurrently": "^9.1.2",
+    "playwright-core": "^1.61.1"
   },
   "engines": {
     "node": ">=20"

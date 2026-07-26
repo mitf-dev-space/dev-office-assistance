@@ -1,0 +1,63 @@
+# Openship LAN trial on mac-a — remapped host ports to avoid Openship control plane (:4000/:3001).
+# Web: http://192.168.1.5:8080  API: http://192.168.1.5:4800
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: office_assistance
+    ports:
+      - "15432:5432"
+    volumes:
+      - office_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d office_assistance"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+      args:
+        NPM_STRICT_SSL: ${NPM_STRICT_SSL:-1}
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/office_assistance
+      AUTH_JWT_SECRET: ${AUTH_JWT_SECRET:-helm-openship-trial-secret-32chars-min}
+      UPLOAD_DIR: /app/data/uploads
+      MAX_UPLOAD_BYTES: ${MAX_UPLOAD_BYTES:-26214400}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://192.168.1.5:8080,http://localhost:8080}
+      PORT: "4000"
+      NODE_ENV: production
+      ALLOW_LOCALHOST_CORS_IN_PRODUCTION: "true"
+      RATE_LIMIT_MAX: ${RATE_LIMIT_MAX:-200}
+      CATALOG_TOKEN_ENCRYPTION_KEY: ${CATALOG_TOKEN_ENCRYPTION_KEY:-local-dev-catalog-token-encryption-key}
+      CLICKUP_TOKEN_ENCRYPTION_KEY: ${CLICKUP_TOKEN_ENCRYPTION_KEY:-}
+      FORGE_ARTIFACTS_ROOT: ${FORGE_ARTIFACTS_ROOT:-data/forge-artifacts}
+      # Do not set FORGE_ALLOW_IOS_SIMULATION — z.coerce.boolean treats string "false" as true.
+      FORGE_RUNNER_TOKEN_PEPPER: ${FORGE_RUNNER_TOKEN_PEPPER:-helm-forge-runner-pepper-32chars-min!!}
+    ports:
+      - "4800:4000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - office_uploads:/app/data/uploads
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        NPM_STRICT_SSL: ${NPM_STRICT_SSL:-1}
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://192.168.1.5:4800}
+    ports:
+      - "8080:80"
+    depends_on:
+      - api
+
+volumes:
+  office_pg_data:
+  office_uploads:
