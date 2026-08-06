@@ -14,6 +14,9 @@ import { ClickUpPage } from "./pages/ClickUpPage";
 import { AppRegistrationsPage } from "./pages/AppRegistrationsPage";
 import { ExpensesPage } from "./pages/ExpensesPage";
 import { ExpenseEditPage } from "./pages/ExpenseEditPage";
+import { IncidentsPage } from "./pages/IncidentsPage";
+import { IncidentCreatePage } from "./pages/IncidentCreatePage";
+import { IncidentDetailPage } from "./pages/IncidentDetailPage";
 import { PlanningPage } from "./pages/PlanningPage";
 import { PlanningEditPage } from "./pages/PlanningEditPage";
 import { TeamManagementPage } from "./pages/TeamManagementPage";
@@ -106,6 +109,9 @@ export default function App() {
           <Route path="/triage/:id" element={<TriageDetailPage />} />
           <Route path="/expenses" element={<ExpensesPage />} />
           <Route path="/expenses/:id" element={<ExpenseEditPage />} />
+          <Route path="/incidents" element={<IncidentsPage />} />
+          <Route path="/incidents/new" element={<IncidentCreatePage />} />
+          <Route path="/incidents/:id" element={<IncidentDetailPage />} />
           <Route path="/planning" element={<PlanningPage />} />
           <Route path="/planning/:id" element={<PlanningEditPage />} />
           <Route path="/developers" element={<DevManagementPage />} />

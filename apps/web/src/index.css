@@ -2563,6 +2563,61 @@ h3.dev-form-section:first-of-type {
   font-size: 0.9rem;
 }
 
+/* --- Incidents --- */
+
+.btn-danger {
+  background: transparent;
+  color: var(--color-danger, #b91c1c);
+  border: 1px solid var(--color-danger, #b91c1c);
+}
+.btn-danger:hover {
+  background: var(--color-danger, #b91c1c);
+  color: #fff;
+}
+
+.incident-meta {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem 1.5rem;
+  margin: 0;
+}
+.incident-meta > div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+.incident-meta dt {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-muted, #6b7280);
+}
+.incident-meta dd {
+  margin: 0;
+  font-weight: 600;
+}
+
+.incident-involved-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 0.4rem 1rem;
+  max-height: 220px;
+  overflow: auto;
+  border: 1px solid var(--color-border, #d1d5db);
+  border-radius: var(--radius, 8px);
+  padding: 0.6rem;
+}
+.incident-involved-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+.incident-involved-item input {
+  width: auto;
+}
+
 .catalog-breakdown-list li:last-child {
   border-bottom: none;
 }

@@ -15,6 +15,7 @@ import { registerMeRoutes } from "./routes/me.js";
 import { registerUsersRoutes } from "./routes/users.js";
 import { registerTriageRoutes } from "./routes/triage.js";
 import { registerTriageAttachmentRoutes } from "./routes/triageAttachments.js";
+import { registerIncidentRoutes } from "./routes/incidents.js";
 import { registerExpensesRoutes } from "./routes/expenses.js";
 import { registerPlanningRoutes } from "./routes/planning.js";
 import { registerTeamMembershipRoutes } from "./routes/teamMemberships.js";
@@ -149,6 +150,7 @@ export async function buildServer() {
     await registerUsersRoutes(inner, env);
     await registerTriageRoutes(inner);
     await registerTriageAttachmentRoutes(inner, env);
+    await registerIncidentRoutes(inner, env);
     await registerExpensesRoutes(inner, env);
     await registerPlanningRoutes(inner);
     await registerTeamMembershipRoutes(inner);

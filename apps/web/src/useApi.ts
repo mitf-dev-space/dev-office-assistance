@@ -37,5 +37,20 @@ export function useApi() {
     });
   }, []);
 
-  return { request, requestWithGraph, uploadTriageAttachment, uploadExpenseReceipt };
+  const uploadIncidentAttachment = useCallback((incidentId: string, file: File) => {
+    const body = new FormData();
+    body.append("file", file, file.name);
+    return apiFetch(`/api/incidents/${incidentId}/attachments`, {
+      method: "POST",
+      body,
+    });
+  }, []);
+
+  return {
+    request,
+    requestWithGraph,
+    uploadTriageAttachment,
+    uploadExpenseReceipt,
+    uploadIncidentAttachment,
+  };
 }

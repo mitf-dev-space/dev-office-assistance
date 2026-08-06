@@ -45,6 +45,7 @@ import {
   IconMicrophone,
   IconChartDots3,
   IconUserShield,
+  IconAlertCircle,
 } from "@tabler/icons-react";
 import type { SessionUser } from "../auth/AuthContext";
 import { canAccessCatalog } from "@office/types";
@@ -81,7 +82,8 @@ function pathToNavGroup(pathname: string): NavGroupId | null {
     pathname.startsWith("/expenses") ||
     pathname.startsWith("/planning") ||
     pathname.startsWith("/developers") ||
-    pathname.startsWith("/team-management")
+    pathname.startsWith("/team-management") ||
+    pathname.startsWith("/incidents")
   ) {
     return "programs";
   }
@@ -475,6 +477,15 @@ export function AppLayout({ user, onLogout, children }: Props) {
                   active={navActive("/team-management", { end: true })}
                   showIconRail={showIconRail}
                   color={primary}
+                />
+                <AppNavItem
+                  to="/incidents"
+                  label="Incidents"
+                  leftSection={<IconAlertCircle {...iconProps} />}
+                  onClick={close}
+                  active={navActive("/incidents", { prefix: true }) && !pathname.startsWith("/incidents/new")}
+                  showIconRail={showIconRail}
+                  color="red"
                 />
               </NavGroup>
 
