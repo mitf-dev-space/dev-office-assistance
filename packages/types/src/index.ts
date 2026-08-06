@@ -464,6 +464,61 @@ export type MeProfileDto = {
   notifyEmailDigest: boolean;
 };
 
+// --- Incidents ---
+
+export type IncidentAttachmentMeta = {
+  id: string;
+  incidentId: string;
+  originalName: string;
+  mimeType: string;
+  sizeBytes: number;
+  createdAt: string;
+};
+
+export type IncidentInvolvedEmployeeDto = {
+  id: string;
+  displayName: string;
+  workEmail: string | null;
+  jobTitle: string | null;
+};
+
+export type IncidentDto = {
+  id: string;
+  incidentNumber: string;
+  title: string;
+  description: string;
+  reporterDeveloperId: string;
+  /** Set when the API joins the reporter (list/detail). */
+  reporterName?: string;
+  involved: IncidentInvolvedEmployeeDto[];
+  incidentAt: string;
+  createdById: string;
+  createdAt: string;
+  updatedAt: string;
+  /** Present on list responses */
+  attachmentCount?: number;
+  /** Present on GET /api/incidents/:id */
+  attachments?: IncidentAttachmentMeta[];
+};
+
+export type CreateIncidentInput = {
+  title: string;
+  description: string;
+  reporterDeveloperId: string;
+  involvedDeveloperIds: string[];
+  incidentAt: string;
+};
+
+export type UpdateIncidentInput = Partial<CreateIncidentInput>;
+
+export type IncidentListQuery = {
+  q?: string;
+  reporterDeveloperId?: string;
+  involvedDeveloperId?: string;
+  from?: string;
+  to?: string;
+};
+
 export * from "./forge.js";
 export * from "./pagination.js";
 export * from "./catalog/index.js";

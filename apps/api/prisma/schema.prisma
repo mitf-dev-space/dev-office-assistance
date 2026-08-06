@@ -105,6 +105,8 @@ model User {
   aiActionProposalsReviewed  AiActionProposal[]      @relation("AiActionProposalReviewedBy")
   llmWorkspaceSettingsUpdated LlmWorkspaceSettings[]
   voiceSessions              VoiceSession[]
+  reportedIncidents          Incident[]            @relation("IncidentReporter")
+  incidentAttachments        IncidentAttachment[]
 }
 
 /// Roster entry: no login. Grouped in teams on Team management; assignable in triage.
@@ -144,6 +146,8 @@ model Developer {
   catalogTeamAssignments CatalogTeamAssignment[]
   ownedRepositories      Repository[]            @relation("RepoTechnicalOwner")
   clickUpUserMappings    ClickUpUserMapping[]
+  incidentInvolvements   IncidentInvolvement[]
+  reportedIncidents      Incident[]              @relation("IncidentReporterDeveloper")
 }
 
 model TriageItem {
@@ -1692,4 +1696,76 @@ model MicrosoftTodoSyncSettings {
   lastSyncAt      DateTime? @map("last_sync_at")
   lastSyncError   String?  @map("last_sync_error") @db.Text
   updatedAt       DateTime @updatedAt
+}
+
+// --- Incidents ---
+
+/// A reported incident (HR / workplace). Reporter is the signed-in user; involved employees are roster `Developer` entries.
+model Incident {
+  id String @id @default(uuid())
+
+  /// Human-readable unique reference, e.g. INC-0001.
+  incidentNumber String @unique @map("incident_number")
+
+  title String
+
+  description String @db.Text
+
+  /// Roster member who reported the incident.
+  reporterDeveloperId String @map("reporter_developer_id")
+  reporter Developer @relation("IncidentReporterDeveloper", fields: [reporterDeveloperId], references: [id])
+
+  /// Signed-in user who created the record.
+  createdById String @map("created_by_id")
+  createdBy User @relation("IncidentReporter", fields: [createdById], references: [id])
+
+  /// Date and time the incident occurred.
+  incidentAt DateTime @map("incident_at")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  attachments IncidentAttachment[]
+  involved IncidentInvolvement[]
+
+  @@index([incidentNumber])
+  @@index([incidentAt])
+  @@index([reporterDeveloperId])
+  @@index([createdById])
+}
+
+/// Files attached to an incident (images, PDFs, Word docs, etc.).
+model IncidentAttachment {
+  id String @id @default(uuid())
+
+  incidentId String @map("incident_id")
+  incident Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+
+  originalName String @map("original_name")
+  mimeType String @map("mime_type")
+  sizeBytes Int @map("size_bytes")
+  storageKey String @unique @map("storage_key")
+
+  createdById String @map("created_by_id")
+  createdBy User @relation(fields: [createdById], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@index([incidentId])
+}
+
+/// Many-to-many: employees involved in or responsible for an incident.
+model IncidentInvolvement {
+  id String @id @default(uuid())
+
+  incidentId String @map("incident_id")
+  incident Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+
+  developerId String @map("developer_id")
+  developer Developer @relation(fields: [developerId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@unique([incidentId, developerId])
+  @@index([developerId])
 }
