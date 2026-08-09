@@ -37,6 +37,34 @@ CREATE TABLE "IncidentInvolvement" (
     CONSTRAINT "IncidentInvolvement_pkey" PRIMARY KEY ("id")
 );
 
+-- Recreate the legacy HrIncident tables so this migration is self-contained
+-- (they were created by an earlier empty migration whose SQL was lost). This
+-- makes the migration replayable in a fresh shadow database.
+CREATE TABLE "HrIncident" (
+    "id" TEXT NOT NULL,
+    "title" VARCHAR NOT NULL,
+    "description" TEXT NOT NULL,
+    "employeeDeveloperId" TEXT NOT NULL,
+    "incidentDate" DATE NOT NULL,
+    "reporterDeveloperId" TEXT NOT NULL,
+    "createdById" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    CONSTRAINT "HrIncident_pkey" PRIMARY KEY ("id")
+);
+
+CREATE TABLE "HrIncidentAttachment" (
+    "id" TEXT NOT NULL,
+    "incidentId" TEXT NOT NULL,
+    "originalName" TEXT NOT NULL,
+    "mimeType" TEXT NOT NULL,
+    "sizeBytes" INTEGER NOT NULL,
+    "storageKey" TEXT NOT NULL,
+    "createdById" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL,
+    CONSTRAINT "HrIncidentAttachment_pkey" PRIMARY KEY ("id")
+);
+
 -- Migrate existing data from the legacy HrIncident tables (if present).
 -- The legacy schema used a single employeeDeveloperId; we map it to the
 -- reporter (reporterDeveloperId) and create an involvement row for the

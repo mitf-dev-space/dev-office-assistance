@@ -107,6 +107,7 @@ model User {
   voiceSessions              VoiceSession[]
   reportedIncidents          Incident[]            @relation("IncidentReporter")
   incidentAttachments        IncidentAttachment[]
+  surveysCreated             Survey[]
 }
 
 /// Roster entry: no login. Grouped in teams on Team management; assignable in triage.
@@ -148,6 +149,8 @@ model Developer {
   clickUpUserMappings    ClickUpUserMapping[]
   incidentInvolvements   IncidentInvolvement[]
   reportedIncidents      Incident[]              @relation("IncidentReporterDeveloper")
+  surveyInvitations      SurveyInvitation[]
+  surveyEligibility      SurveyEligibility[]
 }
 
 model TriageItem {
@@ -1768,4 +1771,149 @@ model IncidentInvolvement {
 
   @@unique([incidentId, developerId])
   @@index([developerId])
+}
+
+// --- Surveys ---
+
+enum SurveyStatus {
+  draft
+  published
+  closed
+  archived
+}
+
+/// A Yes/No survey. Drafts are editable; published surveys are immutable until closed.
+model Survey {
+  id String @id @default(uuid())
+
+  title String
+
+  description String? @db.Text
+
+  status SurveyStatus @default(draft)
+
+  /// Optional automatic closing date/time (published surveys).
+  closesAt DateTime? @map("closes_at")
+
+  /// When true, results are shown to employees after the survey closes.
+  showResultsAfterClose Boolean @default(false) @map("show_results_after_close")
+
+  /// Minimum response count before results are revealed (anonymity guard).
+  minResponsesToShow Int @default(5) @map("min_responses_to_show")
+
+  publishedAt DateTime? @map("published_at")
+
+  closedAt DateTime? @map("closed_at")
+
+  createdById String @map("created_by_id")
+  createdBy User @relation(fields: [createdById], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  questions SurveyQuestion[]
+  invitations SurveyInvitation[]
+  eligibility SurveyEligibility[]
+  responses AnonymousSurveyResponse[]
+
+  @@index([status, createdAt])
+  @@index([createdById])
+}
+
+/// Which employees are eligible for a survey (tracked from draft time).
+model SurveyEligibility {
+  id String @id @default(uuid())
+
+  surveyId String @map("survey_id")
+  survey Survey @relation(fields: [surveyId], references: [id], onDelete: Cascade)
+
+  developerId String @map("developer_id")
+  developer Developer @relation(fields: [developerId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([surveyId, developerId])
+  @@index([surveyId])
+  @@index([developerId])
+}
+
+/// A single Yes/No question. Order and wording are frozen after publication.
+model SurveyQuestion {
+  id String @id @default(uuid())
+
+  surveyId String @map("survey_id")
+  survey Survey @relation(fields: [surveyId], references: [id], onDelete: Cascade)
+
+  /// 1-based position within the survey.
+  position Int
+
+  text String
+
+  createdAt DateTime @default(now())
+
+  answers AnonymousSurveyAnswer[]
+
+  @@unique([surveyId, position])
+  @@index([surveyId])
+}
+
+/// A single-use invitation for one eligible employee. Only the token hash is stored.
+model SurveyInvitation {
+  id String @id @default(uuid())
+
+  surveyId String @map("survey_id")
+  survey Survey @relation(fields: [surveyId], references: [id], onDelete: Cascade)
+
+  developerId String @map("developer_id")
+  developer Developer @relation(fields: [developerId], references: [id], onDelete: Cascade)
+
+  /// SHA-256 hash of the raw invitation token. Raw tokens are never stored.
+  tokenHash String @unique @map("token_hash")
+
+  /// Optional expiry for the invitation.
+  expiresAt DateTime? @map("expires_at")
+
+  used Boolean @default(false)
+
+  /// Set when the invitation is consumed (rounded to avoid precise timing correlation).
+  usedAt DateTime? @map("used_at")
+
+  createdAt DateTime @default(now())
+
+  @@unique([surveyId, developerId])
+  @@index([surveyId])
+  @@index([developerId])
+  @@index([used])
+}
+
+/// Anonymous response. Deliberately has NO link to an employee or invitation.
+model AnonymousSurveyResponse {
+  id String @id @default(uuid())
+
+  surveyId String @map("survey_id")
+  survey Survey @relation(fields: [surveyId], references: [id], onDelete: Cascade)
+
+  /// Rounded submission time (e.g. to the hour) to avoid precise timing correlation.
+  submittedAt DateTime @default(now()) @map("submitted_at")
+
+  answers AnonymousSurveyAnswer[]
+
+  @@index([surveyId])
+}
+
+/// A single anonymous Yes/No answer. No employee or invitation linkage.
+model AnonymousSurveyAnswer {
+  id String @id @default(uuid())
+
+  responseId String @map("response_id")
+  response AnonymousSurveyResponse @relation(fields: [responseId], references: [id], onDelete: Cascade)
+
+  questionId String @map("question_id")
+  question SurveyQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  /// "yes" or "no"
+  value String
+
+  @@unique([responseId, questionId])
+  @@index([questionId])
 }
