@@ -2618,6 +2618,123 @@ h3.dev-form-section:first-of-type {
   width: auto;
 }
 
+/* --- Surveys --- */
+
+.survey-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+.survey-tab {
+  padding: 0.45rem 0.9rem;
+  border: 1px solid var(--color-border, #d1d5db);
+  border-radius: 999px;
+  background: transparent;
+  cursor: pointer;
+  font-size: 0.85rem;
+  color: var(--color-muted, #6b7280);
+}
+.survey-tab--active {
+  background: var(--accent, #0f766e);
+  border-color: var(--accent, #0f766e);
+  color: #fff;
+}
+
+.survey-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.survey-questions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+.survey-question-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.survey-question-num {
+  font-weight: 600;
+  min-width: 1.5rem;
+}
+
+.survey-eligibility {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-bottom: 0.5rem;
+}
+
+.survey-yesno {
+  display: flex;
+  gap: 1.5rem;
+}
+
+.survey-result-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+.survey-result-bar__label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+.survey-result-bar__track {
+  height: 14px;
+  background: var(--color-border, #e5e7eb);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.survey-result-bar__fill {
+  height: 100%;
+  border-radius: 999px;
+}
+.survey-result-bar__fill--yes {
+  background: #15803d;
+}
+.survey-result-bar__fill--no {
+  background: #b91c1c;
+}
+
+.badge--draft {
+  background: #e5e7eb;
+  color: #374151;
+}
+.badge--published {
+  background: #dcfce7;
+  color: #15803d;
+}
+.badge--closed {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+.badge--archived {
+  background: #e0e7ff;
+  color: #4338ca;
+}
+
+.survey-invite-code {
+  display: inline-block;
+  max-width: 340px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: middle;
+  font-size: 0.78rem;
+  color: var(--color-ink, #1f2937);
+  background: var(--color-surface-muted, #f3f4f6);
+  border: 1px solid var(--color-border, #d1d5db);
+  border-radius: 6px;
+  padding: 0.2rem 0.45rem;
+}
+
 .catalog-breakdown-list li:last-child {
   border-bottom: none;
 }
