@@ -11,5 +11,5 @@ jobs:
   dependency-review:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364b9f6c2b # v4.2.2
-      - uses: actions/dependency-review-action@3b139cfc5fae8b618d3ce02b44612b4fd433e51f # v4.5.0
+      - uses: actions/checkout@v4
+      - uses: actions/dependency-review-action@v4
