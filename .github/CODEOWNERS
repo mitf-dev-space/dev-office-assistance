@@ -1,0 +1,9 @@
+# MITF Dev Space - Office Assistance platform
+# Full-stack platform repository (backend, web, infrastructure, E2E).
+# CODEOWNERS documents ownership; required review enforcement needs GitHub Team on private repos.
+
+* @mitf-dev-space/engineering-leads
+/apps/ @mitf-dev-space/web
+/packages/ @mitf-dev-space/web
+/presentation/ @mitf-dev-space/web
+/services/ @mitf-dev-space/platform
