@@ -1,13 +1,17 @@
-# Build and push Docker images to Docker Hub.
+# Build and push Docker images to GitHub Container Registry (GHCR).
 #
+<<<<<<< HEAD:.github/workflows/docker-hub.yml
 # Runs only for the default main branch (push/PR) and version tags.
 # Feature / dev CI stays lean via ci.yml (no image builds).
 #
 # Required secret: DOCKERHUB_TOKEN
 # Optional variable: DOCKERHUB_USERNAME (default anstwechy)
+=======
+# Auth: GITHUB_TOKEN (packages: write). Login uses github.actor.
+>>>>>>> 078d23c (chore(ci): publish office images to GHCR (#16)):.github/workflows/ghcr.yml
 # Optional variable: DOCKER_VITE_API_BASE_URL (LAN default http://10.100.235.21:46811)
 
-name: Docker Hub — build and push
+name: GHCR
 
 on:
   push:
@@ -19,10 +23,14 @@ on:
 
 permissions:
   contents: read
+<<<<<<< HEAD:.github/workflows/docker-hub.yml
   actions: write
+=======
+  packages: write
+>>>>>>> 078d23c (chore(ci): publish office images to GHCR (#16)):.github/workflows/ghcr.yml
 
 env:
-  REGISTRY: docker.io
+  REGISTRY: ghcr.io/mitf-dev-space
 
 jobs:
   build-push:
@@ -50,20 +58,24 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ format('{0}/{1}', vars.DOCKERHUB_USERNAME || 'anstwechy', matrix.image) }}
+          images: ${{ format('{0}/{1}', env.REGISTRY, matrix.image) }}
           tags: |
             type=sha,prefix=,format=long
             type=sha,prefix=,format=short
             type=semver,pattern={{version}}
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
 
+<<<<<<< HEAD:.github/workflows/docker-hub.yml
       - name: Log in to Docker Hub
         if: github.event_name != 'pull_request'
+=======
+      - name: Log in to GHCR
+>>>>>>> 078d23c (chore(ci): publish office images to GHCR (#16)):.github/workflows/ghcr.yml
         uses: docker/login-action@v3
         with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ vars.DOCKERHUB_USERNAME || 'anstwechy' }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push
         id: build
@@ -82,8 +94,13 @@ jobs:
             GIT_SHA=${{ github.sha }}
             IMAGE_VERSION=${{ github.ref_name }}
             ${{ matrix.web == true && format('VITE_API_BASE_URL={0}', vars.DOCKER_VITE_API_BASE_URL || 'http://10.100.235.21:46811') || '' }}
+<<<<<<< HEAD:.github/workflows/docker-hub.yml
           cache-from: type=gha,scope=${{ matrix.image }}
           cache-to: type=gha,mode=max,scope=${{ matrix.image }}
+=======
+          cache-from: type=registry,ref=${{ format('{0}/{1}:latest', env.REGISTRY, matrix.image) }}
+          cache-to: type=inline,mode=max
+>>>>>>> 078d23c (chore(ci): publish office images to GHCR (#16)):.github/workflows/ghcr.yml
 
       - name: Image digest summary
         run: |

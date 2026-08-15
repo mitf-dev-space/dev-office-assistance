@@ -7,7 +7,7 @@ Quick reference for deploying Helm on the shared Masarat LAN server (same host a
 | **Host** | `10.100.235.21` |
 | **SSH** | `masarat-admin@10.100.235.21` |
 | **Compose dir** | `~/compose-dev-office-assistance` |
-| **Registry** | `docker.io/anstwechy/dev-office-assistance-{api,web}:<git-sha>` |
+| **Registry** | `ghcr.io/mitf-dev-space/dev-office-assistance-{api,web}:<git-sha>` |
 
 ## Ports (46xxx — do not collide with OmniTest)
 
