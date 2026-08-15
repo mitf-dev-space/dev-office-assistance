@@ -1,0 +1,8 @@
+{
+  "build": {
+    "dockerfile": "Dockerfile",
+    "context": ".."
+  },
+  "install": "npm ci --no-audit --no-fund && npm run db:generate -w @office/api",
+  "start": "sudo service docker start || true"
+}
