@@ -1,14 +1,6 @@
 # Build and push Docker images to GitHub Container Registry (GHCR).
 #
-<<<<<<< HEAD:.github/workflows/docker-hub.yml
-# Runs only for the default main branch (push/PR) and version tags.
-# Feature / dev CI stays lean via ci.yml (no image builds).
-#
-# Required secret: DOCKERHUB_TOKEN
-# Optional variable: DOCKERHUB_USERNAME (default anstwechy)
-=======
 # Auth: GITHUB_TOKEN (packages: write). Login uses github.actor.
->>>>>>> 078d23c (chore(ci): publish office images to GHCR (#16)):.github/workflows/ghcr.yml
 # Optional variable: DOCKER_VITE_API_BASE_URL (LAN default http://10.100.235.21:46811)
 
 name: GHCR
@@ -17,17 +9,11 @@ on:
   push:
     branches: [main]
     tags: ["v*"]
-  pull_request:
-    branches: [main]
   workflow_dispatch:
 
 permissions:
   contents: read
-<<<<<<< HEAD:.github/workflows/docker-hub.yml
-  actions: write
-=======
   packages: write
->>>>>>> 078d23c (chore(ci): publish office images to GHCR (#16)):.github/workflows/ghcr.yml
 
 env:
   REGISTRY: ghcr.io/mitf-dev-space
@@ -65,12 +51,7 @@ jobs:
             type=semver,pattern={{version}}
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
 
-<<<<<<< HEAD:.github/workflows/docker-hub.yml
-      - name: Log in to Docker Hub
-        if: github.event_name != 'pull_request'
-=======
       - name: Log in to GHCR
->>>>>>> 078d23c (chore(ci): publish office images to GHCR (#16)):.github/workflows/ghcr.yml
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -85,8 +66,7 @@ jobs:
         with:
           context: ${{ matrix.context }}
           file: ${{ matrix.file }}
-          # Publish only on main/tag pushes; PRs to main build without publishing.
-          push: ${{ github.event_name != 'pull_request' }}
+          push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
@@ -94,18 +74,11 @@ jobs:
             GIT_SHA=${{ github.sha }}
             IMAGE_VERSION=${{ github.ref_name }}
             ${{ matrix.web == true && format('VITE_API_BASE_URL={0}', vars.DOCKER_VITE_API_BASE_URL || 'http://10.100.235.21:46811') || '' }}
-<<<<<<< HEAD:.github/workflows/docker-hub.yml
-          cache-from: type=gha,scope=${{ matrix.image }}
-          cache-to: type=gha,mode=max,scope=${{ matrix.image }}
-=======
           cache-from: type=registry,ref=${{ format('{0}/{1}:latest', env.REGISTRY, matrix.image) }}
           cache-to: type=inline,mode=max
->>>>>>> 078d23c (chore(ci): publish office images to GHCR (#16)):.github/workflows/ghcr.yml
 
       - name: Image digest summary
         run: |
           echo "### ${{ matrix.image }}" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Event: ${{ github.event_name }}" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Pushed: ${{ github.event_name != 'pull_request' }}" >> "$GITHUB_STEP_SUMMARY"
           echo "- Tags: ${{ steps.meta.outputs.tags }}" >> "$GITHUB_STEP_SUMMARY"
           echo "- Digest: \`${{ steps.build.outputs.digest }}\`" >> "$GITHUB_STEP_SUMMARY"
