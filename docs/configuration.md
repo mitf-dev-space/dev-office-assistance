@@ -91,10 +91,10 @@ Structured JSON logs (Fastify). Correlation: `x-request-id` request/response hea
 
 | Variable | Required | Default | Secret | Service |
 |----------|----------|---------|--------|---------|
-| `REGISTRY_NAMESPACE` | Yes (deploy) | `anstwechy` | No | compose |
+| `REGISTRY_NAMESPACE` | Yes (deploy) | `ghcr.io/mitf-dev-space` | No | compose |
 | `IMAGE_TAG` | Yes (deploy) | — | No | compose — prefer git SHA |
 | `PULL_POLICY` | No | `always` | No | compose |
-| `DOCKERHUB_TOKEN` | CI push | — | **Yes** | GitHub Actions |
+| `GITHUB_TOKEN` | CI push to GHCR | — | **Yes** (workflow) | GitHub Actions — `packages: write`; login via `github.actor` |
 | `HELM_SSH_*` | LAN deploy | — | password **Yes** | Paramiko script |
 
 LAN deploy credential template: [`docs/deployment/.env.lan-deploy.example`](./deployment/.env.lan-deploy.example).

@@ -42,15 +42,15 @@ Not fully proven in this session against the live server (SSH credentials / imag
 
 | Service | Image | Tag strategy |
 |---------|-------|--------------|
-| api | `anstwechy/dev-office-assistance-api` | full SHA, short SHA, semver, `latest` |
-| web | `anstwechy/dev-office-assistance-web` | same; bake `VITE_API_BASE_URL=http://10.100.235.21:46811` |
+| api | `ghcr.io/mitf-dev-space/dev-office-assistance-api` | full SHA, short SHA, semver, `latest` |
+| web | `ghcr.io/mitf-dev-space/dev-office-assistance-web` | same; bake `VITE_API_BASE_URL=http://10.100.235.21:46811` |
 
 Digests: recorded in GitHub Actions job summary on push to `main`.
 
 ## Pipeline
 
 - PR/push: build, lint, unit tests, env fail-fast, compose config, docker build (no push), audit report, secret scan
-- `main`: Docker Hub push
+- `main`: GHCR push (`ghcr.yml`)
 - Deploy workflow: manual, environment-gated, off by default
 
 ## Deployment procedure
@@ -76,7 +76,7 @@ See assessment backlog: TLS proxy, `/opt` layout, separate compose repo, OTel, o
 
 ## Exact manual actions still required
 
-1. Set GitHub `DOCKERHUB_TOKEN` / `DOCKER_VITE_API_BASE_URL` if not already.
+1. Ensure GitHub Actions can push to GHCR (`GITHUB_TOKEN` with `packages: write`) and set `DOCKER_VITE_API_BASE_URL` if not already.
 2. Merge to `main` and confirm image push.
 3. Bootstrap `~/compose-dev-office-assistance` on `10.100.235.21`.
 4. Create `.env.production` with real secrets.

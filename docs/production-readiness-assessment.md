@@ -33,8 +33,8 @@ flowchart LR
 
 | Service | Image / runtime | Host port | Container port |
 |---------|-----------------|-----------|----------------|
-| `web` | `anstwechy/dev-office-assistance-web` | **46810** | 80 |
-| `api` | `anstwechy/dev-office-assistance-api` | **46811** | 4000 |
+| `web` | `ghcr.io/mitf-dev-space/dev-office-assistance-web` | **46810** | 80 |
+| `api` | `ghcr.io/mitf-dev-space/dev-office-assistance-api` | **46811** | 4000 |
 | `postgres` | `postgres:16-alpine` | **not published** | 5432 |
 | `migrate` | same API image, one-shot | — | — |
 
@@ -53,7 +53,7 @@ flowchart LR
 | API | 46400 | **46811** |
 | Postgres host | 46432 | **none (internal)** |
 | Redis | 46380 | n/a |
-| Registry | `qamasarat/omnitest-*` | `anstwechy/dev-office-assistance-*` |
+| Registry | `qamasarat/omnitest-*` | `ghcr.io/mitf-dev-space/dev-office-assistance-*` |
 
 **Port collision risk:** none if Helm stays on 46810/46811.
 
@@ -62,7 +62,7 @@ flowchart LR
 ## Required infrastructure
 
 - Linux Docker Engine + Compose plugin on `10.100.235.21`
-- Docker Hub pull access for `anstwechy/*`
+- GHCR pull access for `ghcr.io/mitf-dev-space/dev-office-assistance-*`
 - Named volumes: Postgres data, uploads, forge artifacts
 - Disk for images + volumes (coexists with OmniTest under `/var/lib/docker`)
 - Optional: SMTP, GitLab/GitHub tokens, ClickUp, M365 app IDs
@@ -121,7 +121,7 @@ Cron HTTP: weekly digest (documented `CRON_SECRET`).
 | `docker-compose.yml` | Local prod-like; publishes Postgres; weak DB password |
 | `docker-compose.server.yml` | LAN ports OK; local images; auto-seed; hardcoded DB password |
 | `.github/workflows/ci.yml` | Build/lint/unit only |
-| `.github/workflows/docker-hub.yml` | Push short SHA + latest on `main` |
+| `.github/workflows/ghcr.yml` | Push short SHA + latest on `main` |
 
 ---
 
