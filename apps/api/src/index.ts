@@ -15,6 +15,9 @@ import { registerMeRoutes } from "./routes/me.js";
 import { registerUsersRoutes } from "./routes/users.js";
 import { registerTriageRoutes } from "./routes/triage.js";
 import { registerTriageAttachmentRoutes } from "./routes/triageAttachments.js";
+import { registerIncidentRoutes } from "./routes/incidents.js";
+import { registerSurveyRoutes } from "./routes/surveys.js";
+import { registerPublicSurveyRoutes } from "./routes/publicSurveys.js";
 import { registerExpensesRoutes } from "./routes/expenses.js";
 import { registerPlanningRoutes } from "./routes/planning.js";
 import { registerTeamMembershipRoutes } from "./routes/teamMemberships.js";
@@ -140,6 +143,7 @@ export async function buildServer() {
   await registerForgeWorkerRoutes(app, env);
   await registerCatalogWebhookRoutes(app, env);
   await registerClickUpWebhookRoutes(app, env);
+  await registerPublicSurveyRoutes(app);
 
   await app.register(async function protectedApi(inner) {
     inner.addHook("preValidation", authMiddleware);
@@ -149,6 +153,8 @@ export async function buildServer() {
     await registerUsersRoutes(inner, env);
     await registerTriageRoutes(inner);
     await registerTriageAttachmentRoutes(inner, env);
+    await registerIncidentRoutes(inner, env);
+    await registerSurveyRoutes(inner, env);
     await registerExpensesRoutes(inner, env);
     await registerPlanningRoutes(inner);
     await registerTeamMembershipRoutes(inner);

@@ -14,6 +14,14 @@ import { ClickUpPage } from "./pages/ClickUpPage";
 import { AppRegistrationsPage } from "./pages/AppRegistrationsPage";
 import { ExpensesPage } from "./pages/ExpensesPage";
 import { ExpenseEditPage } from "./pages/ExpenseEditPage";
+import { IncidentsPage } from "./pages/IncidentsPage";
+import { IncidentCreatePage } from "./pages/IncidentCreatePage";
+import { IncidentDetailPage } from "./pages/IncidentDetailPage";
+import { SurveysPage } from "./pages/SurveysPage";
+import { SurveyEditPage } from "./pages/SurveyEditPage";
+import { SurveyResultsPage } from "./pages/SurveyResultsPage";
+import { SurveyInvitationsPage } from "./pages/SurveyInvitationsPage";
+import { SurveyRespondPage } from "./pages/SurveyRespondPage";
 import { PlanningPage } from "./pages/PlanningPage";
 import { PlanningEditPage } from "./pages/PlanningEditPage";
 import { TeamManagementPage } from "./pages/TeamManagementPage";
@@ -76,6 +84,7 @@ export default function App() {
       <div className="app-shell app-shell--auth">
         <Routes>
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/survey/respond/:token" element={<SurveyRespondPage />} />
           <Route path="*" element={<LoginPage />} />
         </Routes>
       </div>
@@ -106,6 +115,14 @@ export default function App() {
           <Route path="/triage/:id" element={<TriageDetailPage />} />
           <Route path="/expenses" element={<ExpensesPage />} />
           <Route path="/expenses/:id" element={<ExpenseEditPage />} />
+          <Route path="/incidents" element={<IncidentsPage />} />
+          <Route path="/incidents/new" element={<IncidentCreatePage />} />
+          <Route path="/incidents/:id" element={<IncidentDetailPage />} />
+          <Route path="/surveys" element={<SurveysPage />} />
+          <Route path="/surveys/new" element={<SurveyEditPage />} />
+          <Route path="/surveys/:id/edit" element={<SurveyEditPage />} />
+          <Route path="/surveys/:id/results" element={<SurveyResultsPage />} />
+          <Route path="/surveys/:id/invitations" element={<SurveyInvitationsPage />} />
           <Route path="/planning" element={<PlanningPage />} />
           <Route path="/planning/:id" element={<PlanningEditPage />} />
           <Route path="/developers" element={<DevManagementPage />} />

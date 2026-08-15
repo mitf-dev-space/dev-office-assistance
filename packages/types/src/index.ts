@@ -464,6 +464,172 @@ export type MeProfileDto = {
   notifyEmailDigest: boolean;
 };
 
+// --- Incidents ---
+
+export type IncidentAttachmentMeta = {
+  id: string;
+  incidentId: string;
+  originalName: string;
+  mimeType: string;
+  sizeBytes: number;
+  createdAt: string;
+};
+
+export type IncidentInvolvedEmployeeDto = {
+  id: string;
+  displayName: string;
+  workEmail: string | null;
+  jobTitle: string | null;
+};
+
+export type IncidentDto = {
+  id: string;
+  incidentNumber: string;
+  title: string;
+  description: string;
+  reporterDeveloperId: string;
+  /** Set when the API joins the reporter (list/detail). */
+  reporterName?: string;
+  involved: IncidentInvolvedEmployeeDto[];
+  incidentAt: string;
+  createdById: string;
+  createdAt: string;
+  updatedAt: string;
+  /** Present on list responses */
+  attachmentCount?: number;
+  /** Present on GET /api/incidents/:id */
+  attachments?: IncidentAttachmentMeta[];
+};
+
+export type CreateIncidentInput = {
+  title: string;
+  description: string;
+  reporterDeveloperId: string;
+  involvedDeveloperIds: string[];
+  incidentAt: string;
+};
+
+export type UpdateIncidentInput = Partial<CreateIncidentInput>;
+
+export type IncidentListQuery = {
+  q?: string;
+  reporterDeveloperId?: string;
+  involvedDeveloperId?: string;
+  from?: string;
+  to?: string;
+};
+
+// --- Surveys ---
+
+export const SURVEY_STATUSES = [
+  "draft",
+  "published",
+  "closed",
+  "archived",
+] as const;
+export type SurveyStatus = (typeof SURVEY_STATUSES)[number];
+
+export const SURVEY_MAX_QUESTIONS = 10;
+export const SURVEY_MIN_QUESTIONS = 1;
+
+/** Which employees are eligible to participate. */
+export type SurveyEligibilityRule =
+  | { kind: "all" }
+  | { kind: "department"; team: DevTeam }
+  | { kind: "specific"; developerIds: string[] };
+
+export type SurveyQuestionDto = {
+  id: string;
+  position: number;
+  text: string;
+};
+
+/** Invitation info returned to managers (never includes the raw token after publish). */
+export type SurveyInvitationDto = {
+  id: string;
+  developerId: string;
+  developerName: string;
+  workEmail: string | null;
+  used: boolean;
+  usedAt: string | null;
+  expiresAt: string | null;
+  createdAt: string;
+  /** Present only in the publish response / regenerate response (single-use display). */
+  token?: string;
+};
+
+export type SurveyDto = {
+  id: string;
+  title: string;
+  description: string | null;
+  status: SurveyStatus;
+  closesAt: string | null;
+  showResultsAfterClose: boolean;
+  minResponsesToShow: number;
+  publishedAt: string | null;
+  closedAt: string | null;
+  createdById: string;
+  createdAt: string;
+  updatedAt: string;
+  questions: SurveyQuestionDto[];
+  eligibleCount: number;
+  invitationCount: number;
+  usedInvitationCount: number;
+  responseCount: number;
+  participationPercent: number;
+};
+
+export type CreateSurveyInput = {
+  title: string;
+  description?: string | null;
+  questions: { text: string }[];
+  eligibility: SurveyEligibilityRule;
+  closesAt?: string | null;
+  showResultsAfterClose?: boolean;
+  minResponsesToShow?: number;
+};
+
+export type UpdateSurveyInput = Partial<CreateSurveyInput>;
+
+export type SurveyQuestionResult = {
+  questionId: string;
+  position: number;
+  text: string;
+  yes: number;
+  no: number;
+  total: number;
+  yesPercent: number;
+  noPercent: number;
+};
+
+export type SurveyResultsDto = {
+  surveyId: string;
+  title: string;
+  description: string | null;
+  status: SurveyStatus;
+  publishedAt: string | null;
+  closedAt: string | null;
+  eligibleCount: number;
+  responseCount: number;
+  participationPercent: number;
+  questionResults: SurveyQuestionResult[];
+  /** Whether results are revealed (respects showResultsAfterClose + minResponsesToShow). */
+  revealed: boolean;
+};
+
+/** Public survey info shown before voting (no results). */
+export type PublicSurveyDto = {
+  id: string;
+  title: string;
+  description: string | null;
+  closesAt: string | null;
+  questions: SurveyQuestionDto[];
+};
+
+export type SubmitSurveyInput = {
+  answers: Record<string, "yes" | "no">;
+};
+
 export * from "./forge.js";
 export * from "./pagination.js";
 export * from "./catalog/index.js";
