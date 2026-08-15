@@ -1,28 +1,22 @@
-# Build and push Docker images to Docker Hub.
+# Build and push Docker images to GitHub Container Registry (GHCR).
 #
-# Runs only for the default main branch (push/PR) and version tags.
-# Feature / dev CI stays lean via ci.yml (no image builds).
-#
-# Required secret: DOCKERHUB_TOKEN
-# Optional variable: DOCKERHUB_USERNAME (default anstwechy)
+# Auth: GITHUB_TOKEN (packages: write). Login uses github.actor.
 # Optional variable: DOCKER_VITE_API_BASE_URL (LAN default http://10.100.235.21:46811)
 
-name: Docker Hub — build and push
+name: GHCR
 
 on:
   push:
     branches: [main]
     tags: ["v*"]
-  pull_request:
-    branches: [main]
   workflow_dispatch:
 
 permissions:
   contents: read
-  actions: write
+  packages: write
 
 env:
-  REGISTRY: docker.io
+  REGISTRY: ghcr.io/mitf-dev-space
 
 jobs:
   build-push:
@@ -50,20 +44,19 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ format('{0}/{1}', vars.DOCKERHUB_USERNAME || 'anstwechy', matrix.image) }}
+          images: ${{ format('{0}/{1}', env.REGISTRY, matrix.image) }}
           tags: |
             type=sha,prefix=,format=long
             type=sha,prefix=,format=short
             type=semver,pattern={{version}}
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
 
-      - name: Log in to Docker Hub
-        if: github.event_name != 'pull_request'
+      - name: Log in to GHCR
         uses: docker/login-action@v3
         with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ vars.DOCKERHUB_USERNAME || 'anstwechy' }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push
         id: build
@@ -73,8 +66,7 @@ jobs:
         with:
           context: ${{ matrix.context }}
           file: ${{ matrix.file }}
-          # Publish only on main/tag pushes; PRs to main build without publishing.
-          push: ${{ github.event_name != 'pull_request' }}
+          push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
@@ -82,13 +74,11 @@ jobs:
             GIT_SHA=${{ github.sha }}
             IMAGE_VERSION=${{ github.ref_name }}
             ${{ matrix.web == true && format('VITE_API_BASE_URL={0}', vars.DOCKER_VITE_API_BASE_URL || 'http://10.100.235.21:46811') || '' }}
-          cache-from: type=gha,scope=${{ matrix.image }}
-          cache-to: type=gha,mode=max,scope=${{ matrix.image }}
+          cache-from: type=registry,ref=${{ format('{0}/{1}:latest', env.REGISTRY, matrix.image) }}
+          cache-to: type=inline,mode=max
 
       - name: Image digest summary
         run: |
           echo "### ${{ matrix.image }}" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Event: ${{ github.event_name }}" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Pushed: ${{ github.event_name != 'pull_request' }}" >> "$GITHUB_STEP_SUMMARY"
           echo "- Tags: ${{ steps.meta.outputs.tags }}" >> "$GITHUB_STEP_SUMMARY"
           echo "- Digest: \`${{ steps.build.outputs.digest }}\`" >> "$GITHUB_STEP_SUMMARY"

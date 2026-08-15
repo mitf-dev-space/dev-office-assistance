@@ -13,7 +13,7 @@
 
 1. Docker Engine + Compose plugin (already present for OmniTest).
 2. User in `docker` group (`masarat-admin`).
-3. Docker Hub pull access for `anstwechy/dev-office-assistance-*`.
+3. GHCR pull access for `ghcr.io/mitf-dev-space/dev-office-assistance-*`.
 4. Free ports **46810** and **46811**.
 
 ## Bootstrap
@@ -40,7 +40,7 @@ Allow LAN/VPN access to `46810`/`46811` only. Do **not** publish Postgres.
 docker login
 ```
 
-Prefer CI-built public/pullable images under `anstwechy/`.
+Prefer CI-built images from `ghcr.io/mitf-dev-space/`.
 
 ## TLS
 
