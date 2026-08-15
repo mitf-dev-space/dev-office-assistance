@@ -4,8 +4,8 @@ Engineer runbook for the shared Masarat LAN server. Deep dives live under `docs/
 
 ## 1. Architecture overview
 
-- **Web** (nginx SPA) `:46810` → image `anstwechy/dev-office-assistance-web`
-- **API** (Fastify + Prisma) `:46811` → `anstwechy/dev-office-assistance-api`
+- **Web** (nginx SPA) `:46810` → image `ghcr.io/mitf-dev-space/dev-office-assistance-web`
+- **API** (Fastify + Prisma) `:46811` → `ghcr.io/mitf-dev-space/dev-office-assistance-api`
 - **Postgres 16** internal only
 - **Migrate** one-shot container before API starts
 - Same host as OmniTest (`10.100.235.21`); do not use ports 46300/46400
@@ -13,7 +13,7 @@ Engineer runbook for the shared Masarat LAN server. Deep dives live under `docs/
 ## 2. Deployment prerequisites
 
 - Docker Engine + Compose on server
-- Docker Hub access (`anstwechy`)
+- GHCR pull access for `ghcr.io/mitf-dev-space/dev-office-assistance-*`
 - SSH as `masarat-admin`
 - `~/compose-dev-office-assistance` bootstrapped
 - Strong secrets in `.env.production`
@@ -22,8 +22,7 @@ Engineer runbook for the shared Masarat LAN server. Deep dives live under `docs/
 
 | Name | Where | Purpose |
 |------|-------|---------|
-| `DOCKERHUB_TOKEN` | GitHub repo secret | Push images |
-| `DOCKERHUB_USERNAME` | GitHub variable (optional) | Default `anstwechy` |
+| `GITHUB_TOKEN` | GitHub Actions (built-in) | Push images to GHCR (`packages: write`) |
 | `DOCKER_VITE_API_BASE_URL` | Variable | `http://10.100.235.21:46811` |
 | `HELM_ENABLE_CD` | Variable | Must be `true` to enable gated CD workflow |
 | `PRODUCTION_*` | Environment `production` | Only if CD enabled |
@@ -37,8 +36,8 @@ See `deploy/.env.production.example` and `docs/configuration.md`. Minimum:
 ## 5. Registry configuration
 
 ```text
-docker.io/anstwechy/dev-office-assistance-api:<git-sha>
-docker.io/anstwechy/dev-office-assistance-web:<git-sha>
+ghcr.io/mitf-dev-space/dev-office-assistance-api:<git-sha>
+ghcr.io/mitf-dev-space/dev-office-assistance-web:<git-sha>
 ```
 
 Tags: full SHA, short SHA, semver (on `v*`), `latest` on `main`.
